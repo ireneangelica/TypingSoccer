@@ -736,6 +736,7 @@ struct BackButton: View {
     
     var body: some View {
         Button {
+            Audio.button()
             coordinator.screen = .menu
         } label: {
             Image(systemName: "arrowshape.turn.up.backward.fill")
@@ -906,6 +907,7 @@ struct TeamSelectionView: View {
                 
                 HStack {
                     Button {
+                        Audio.button()
                         coordinator.screen = .menu
                     } label: {
                         Image(systemName: "arrowshape.turn.up.backward.fill")
@@ -926,9 +928,10 @@ struct TeamSelectionView: View {
                 ForEach(WorldCupTeams.all.sorted { $0.name < $1.name }) { team in
                     
                     Button {
+                        Audio.button()
                         selectedTeam = team
                         coordinator.homeWCTeam = team
-                        
+
                         guard !isMultiplayer else { return }
                         let opponents = WorldCupTeams.all.filter {
                             $0.id != team.id
@@ -1057,6 +1060,7 @@ struct TeamSelectionView: View {
             if isMultiplayer ? selectedTeam != nil : aiTeam != nil {
 
                 Button {
+                    Audio.button()
                     coordinator.startSinglePlayer()
                 } label: {
 
@@ -1331,7 +1335,7 @@ struct PlayingView: View {
             ZStack(alignment: .topLeading) {
                 if let scene = coordinator.scene {
                     SpriteHostView(scene: scene)
-                        .aspectRatio(GameConfig.sceneSize.width / GameConfig.sceneSize.height, contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 
                 // vs AI only: pause button, top-left corner.
@@ -1502,7 +1506,7 @@ struct ResultsView: View {
             coachSection
                 .padding(.vertical, 4)
             
-            Button(action: { coordinator.returnToMenu() }) {
+            Button(action: { Audio.button(); coordinator.returnToMenu() }) {
                 Text(L("results.back"))
                     .font(.system(size: 15, weight: .bold, design: .monospaced))
                     .frame(width: 240, height: 44)

@@ -52,7 +52,7 @@ enum GameConfig {
     static let energyMinSpeedFactor: CGFloat = 0.5
     /// Energy is NOT reset between rounds — it lasts the whole match. Only a
     /// half-time / extra-time break restores this small amount per player.
-    static let energyBreakRestore: CGFloat = 30
+    static let energyBreakRestore: CGFloat = 45
 
     // MARK: Timing
     static let countdownSeconds = 3
@@ -66,6 +66,10 @@ enum GameConfig {
     /// clock so joiners can't drift. Small enough to stay tight, cheap enough
     /// to send unreliably every few frames.
     static let clockSyncInterval: TimeInterval = 0.5
+    /// On an open-play goal the "siu" is triggered this many seconds BEFORE the
+    /// ball crosses the line, so it lands slightly ahead of the applause (which
+    /// plays as the ball hits the net).
+    static let goalSoundLead: TimeInterval = 0.2
 
     // MARK: Extra time / penalties
     /// Each extra-time half shows as 15 football minutes (played at the same
