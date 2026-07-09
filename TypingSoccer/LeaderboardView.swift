@@ -204,3 +204,8 @@ struct LeaderboardView: View {
         return f.string(from: NSNumber(value: n)) ?? "\(n)"
     }
 }
+
+#Preview("LeaderboardView") {
+    LeaderboardView()
+        .environmentObject(GameCoordinator())
+}
