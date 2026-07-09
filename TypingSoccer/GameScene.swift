@@ -232,7 +232,10 @@ final class GameScene: SKScene {
 
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.03, green: 0.05, blue: 0.09, alpha: 1)
-        scaleMode = .aspectFit
+        // Fill the host view (cropping the outer margin) instead of letterboxing,
+        // so no background shows through above/below the pitch. The 60pt field
+        // inset absorbs the small edge crop at typical window sizes.
+        scaleMode = .aspectFill
         addChild(world)
 
         geometry = FieldBuilder.build(in: world, sceneSize: size)
@@ -293,7 +296,6 @@ final class GameScene: SKScene {
         guard stage != .shootout else { return }   // no formations during penalties
         guard mode == .singlePlayer || localIsField else { return }   // keepers don't set shapes
         guard (pendingHomeFormation ?? homeFormation) != f else { return }
-        Audio.formation()               // the player switched shape
         switch phase {
         case .strategyPick, .countdown:
             homeFormation = f
@@ -604,7 +606,6 @@ final class GameScene: SKScene {
             }
 
         case .interception:
-            Audio.battleEnd()                // the tackle/battle is decided
             let attacker = duelAttacker!     // current carrier
             let defender = duelDefender!     // interceptor
             if winner == attacker.team {
@@ -645,8 +646,8 @@ final class GameScene: SKScene {
 
     private func celebrateGoal(scoringTeam: Team) {
         phase = .goalScored(scoringTeam)
-        // Celebration voice ("SIUUUU") only when the local player's side scores.
-        if scoringTeam == .home { Audio.celebration() }
+        // No separate celebration cue — the goal SFX (played on every machine
+        // when the ball hits the net) already sounds for all players.
         hud.showStatus(scoringTeam == .home ? "GOAL!" : "RIVAL SCORES", fontSize: 48)
         run(.sequence([.wait(forDuration: 1.4), .run { [weak self] in
             guard let self else { return }
@@ -854,7 +855,6 @@ final class GameScene: SKScene {
         ballInFlight = true
         ball.isHidden = false
         phase = .goalScored(gk.team)   // neutral pause while the ball travels
-        Audio.saved()                  // keeper gets a hand to it
         hud.showStatus("SAVED!", fontSize: 44)
         let travel = SKAction.move(to: gk.position, duration: GameConfig.keeperCatchDuration)
         travel.timingMode = .easeOut
@@ -944,8 +944,17 @@ final class GameScene: SKScene {
         }
 
         Audio.kick()   // the ball is struck at goal
-        let kick = SKAction.move(to: target, duration: 0.45)
+        let kickDuration: TimeInterval = 0.45
+        let kick = SKAction.move(to: target, duration: kickDuration)
         kick.timingMode = .easeOut
+        // Bring the goal "siu" in a touch before the ball crosses the line, so
+        // it leads the applause. Open play only — shootout goals use the
+        // whistle cue in finishGoal instead.
+        if scored && stage != .shootout {
+            let lead = min(kickDuration, GameConfig.goalSoundLead)
+            run(.sequence([.wait(forDuration: kickDuration - lead),
+                           .run { Audio.goal() }]))
+        }
         ball.run(kick) { [weak self] in
             guard let self else { return }
             self.ballInFlight = false
@@ -963,7 +972,6 @@ final class GameScene: SKScene {
         ballInFlight = true
         ball.isHidden = false
         phase = .goalScored(gk.team)   // neutral pause while the ball travels
-        Audio.saved()                  // keeper gets a hand to it
         hud.showStatus("SAVED!", fontSize: 44)
 
         let travel = SKAction.move(to: gk.position, duration: GameConfig.keeperCatchDuration)
@@ -1002,7 +1010,9 @@ final class GameScene: SKScene {
         }
         if scoringTeam == .home { homeScore += 1; homeStats.goals += 1 } else { awayScore += 1 }
         hud.updateScore(home: homeScore, away: awayScore)
-        Audio.goal()                    // ball hits the net
+        // The "siu" was already triggered mid-flight (in shootBall) so it leads
+        // slightly; the applause lands now, as the ball hits the net.
+        Audio.celebration()             // for all players
         celebrateGoal(scoringTeam: scoringTeam)
     }
 
@@ -2175,30 +2185,20 @@ private extension CGPoint {
 enum SFX: CaseIterable {
     case button          // any UI button tap
     case whistle         // kickoff / half time / full time
-    case battleStart     // two players collide → a duel begins
-    case battleEnd       // a duel (interception) resolves
-    case kick            // the ball is struck at goal
+    case kick            // the ball is struck at goal (also passes + duel starts)
     case goal            // the ball hits the net
-    case saved           // the keeper catches the shot
+    case celebration     // applause on any goal (plays with the goal SFX for all)
     case miss            // a shot sails wide (e.g. after a mistype)
-    case celebration     // goal celebration voice ("SIUUUU")
-    case formation       // the player changes formation
-    case pass            // a pass / generic cue
 
     /// Base filename to look for in the bundle (no extension).
     var fileBase: String {
         switch self {
         case .button:      return "sfx_button"
         case .whistle:     return "sfx_whistle"
-        case .battleStart: return "sfx_battle_start"
-        case .battleEnd:   return "sfx_battle_end"
         case .kick:        return "sfx_kick"
         case .goal:        return "sfx_goal"
-        case .saved:       return "sfx_saved"
-        case .miss:        return "sfx_miss"
         case .celebration: return "sfx_celebration"
-        case .formation:   return "sfx_formation"
-        case .pass:        return "sfx_pass"
+        case .miss:        return "sfx_miss"
         }
     }
 
@@ -2207,15 +2207,19 @@ enum SFX: CaseIterable {
         switch self {
         case .button:      return "Tink"
         case .whistle:     return "Submarine"
-        case .battleStart: return "Pop"
-        case .battleEnd:   return "Bottle"
         case .kick:        return "Tink"
         case .goal:        return "Glass"
-        case .saved:       return "Funk"
-        case .miss:        return "Basso"
         case .celebration: return "Hero"
-        case .formation:   return "Morse"
-        case .pass:        return "Purr"
+        case .miss:        return "Basso"
+        }
+    }
+
+    /// Per-cue gain on top of the global SFX volume (1.0 = full). The applause
+    /// sits softly under the goal sound.
+    var volumeScale: Float {
+        switch self {
+        case .celebration: return 0.125   // soft applause under the goal sound
+        default:           return 1.0
         }
     }
 }
@@ -2245,7 +2249,11 @@ final class AudioManager {
 
     private func bundleURL(base: String) -> URL? {
         for ext in Self.extensions {
+            // Files added individually sit at the resource root; a "Sounds"
+            // folder reference keeps them in that subdirectory. Check both so
+            // either way of adding them to the target works.
             if let url = Bundle.main.url(forResource: base, withExtension: ext) { return url }
+            if let url = Bundle.main.url(forResource: base, withExtension: ext, subdirectory: "Sounds") { return url }
         }
         return nil
     }
@@ -2253,8 +2261,9 @@ final class AudioManager {
     // MARK: Sound effects
 
     func play(_ sfx: SFX) {
-        let volume = Float(SettingsStore.shared.sfxVolume)
-        guard volume > 0 else { return }
+        let base = Float(SettingsStore.shared.sfxVolume)
+        guard base > 0 else { return }
+        let volume = base * sfx.volumeScale        // per-cue gain (e.g. quieter applause)
         if let url = bundleURL(base: sfx.fileBase) {
             let player: AVAudioPlayer
             if let cached = sfxPlayers[sfx.fileBase] {
@@ -2325,16 +2334,14 @@ enum Audio {
     // SFX
     static func button()      { AudioManager.shared.play(.button) }
     static func whistle()     { AudioManager.shared.play(.whistle) }
-    static func battleStart() { AudioManager.shared.play(.battleStart) }
-    static func battleEnd()   { AudioManager.shared.play(.battleEnd) }
+    /// Duel start shares the kick sound (no separate battle-start SFX).
+    static func battleStart() { AudioManager.shared.play(.kick) }
     static func kick()        { AudioManager.shared.play(.kick) }
     static func goal()        { AudioManager.shared.play(.goal) }
-    static func saved()       { AudioManager.shared.play(.saved) }
-    static func miss()        { AudioManager.shared.play(.miss) }
     static func celebration() { AudioManager.shared.play(.celebration) }
-    static func formation()   { AudioManager.shared.play(.formation) }
-    /// Legacy generic cue kept for existing pass/tap call sites.
-    static func tick()        { AudioManager.shared.play(.pass) }
+    static func miss()        { AudioManager.shared.play(.miss) }
+    /// Pass / generic tap cue — shares the kick sound (one SFX for both).
+    static func tick()        { AudioManager.shared.play(.kick) }
 
     // Music
     static func lobbyMusic()  { AudioManager.shared.playMusic(.lobby) }

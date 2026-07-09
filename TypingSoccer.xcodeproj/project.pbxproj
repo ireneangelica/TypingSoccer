@@ -24,6 +24,7 @@
 		A5B6C7D8E9FA0B1C2D3E4F5B /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C7D8E9FA0B1C2D3E4F5A6C /* ProfileView.swift */; };
 		A6B7C8D9EAFB0C1D2E3F4A5C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C8D9EAFB0C1D2E3F4A5B6D /* SettingsView.swift */; };
 		A7B8C9DAEBFC0D1E2F3A4B5D /* HowToPlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8C9DAEBFC0D1E2F3A4B5C6E /* HowToPlayView.swift */; };
+		AABBCCDDEEFF001122334456 /* Sounds in Resources */ = {isa = PBXBuildFile; fileRef = AABBCCDDEEFF001122334455 /* Sounds */; };
 		AE8B0B26842A628F5AFCA23C /* GameConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E64FAE0A92CF7291DD8EF8 /* GameConfig.swift */; };
 		B590DFF657FD54743E9BA7E3 /* PlayerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D973C226E34EE9D5B65375A /* PlayerNode.swift */; };
 		BA8BFE575951459BB1EC6CF6 /* GameScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = C90E03F21D2F518D6728E91D /* GameScene.swift */; };
@@ -43,6 +44,7 @@
 		63E93A0C8C2FEEB33805F25F /* MatchFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchFeedback.swift; sourceTree = "<group>"; };
 		71CCD365E3A654DA84DBA191 /* TypingSoccer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TypingSoccer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7824C4E51B47CC9732FE374B /* HUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUD.swift; sourceTree = "<group>"; };
+		AABBCCDDEEFF001122334455 /* Sounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Sounds; sourceTree = "<group>"; };
 		AABBDCBC89F14149BDAD3D28 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
 		B050C4175D2B4A5D44C9DF00 /* TypingSoccer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TypingSoccer.entitlements; sourceTree = "<group>"; };
 		B3C4D5E6F70819203142535E /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				FACEBBF34CB8F22C885A89F4 /* WordProvider.swift */,
 				C5D6E7F8091A2B3C4D5E6F70 /* WorldCupTeams.swift */,
 				0BFF27C7E987F9099D6AED79 /* Assets.xcassets */,
+				AABBCCDDEEFF001122334455 /* Sounds */,
 				04C165BFC61BB770D0529EA7 /* Info.plist */,
 				B050C4175D2B4A5D44C9DF00 /* TypingSoccer.entitlements */,
 			);
@@ -179,6 +182,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				40D6D858E32C16BCCF5AD580 /* Assets.xcassets in Resources */,
+				AABBCCDDEEFF001122334456 /* Sounds in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

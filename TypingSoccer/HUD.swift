@@ -133,14 +133,18 @@ final class HUD: SKNode {
         enemyTypedLabel.fontColor = SKColor(red: 1, green: 0.45, blue: 0.2, alpha: 1)
         enemyRemainLabel.fontColor = SKColor(white: 0.4, alpha: 1)
 
+        // Sit the panels just above the pitch's top edge (outside the green),
+        // in the dark band below the score/timer strip.
+        let pitchTop = sceneSize.height - GameConfig.hudHeight - GameConfig.fieldInset
+        let panelY = pitchTop + 34
         buildStatPanel(panel: leftPanel, title: leftPanelTitle,
                        fill: leftEnergyFill, speed: leftSpeedLabel,
                        center: CGPoint(x: GameConfig.fieldInset + 106,
-                                       y: GameConfig.fieldInset + 38))
+                                       y: panelY))
         buildStatPanel(panel: rightPanel, title: rightPanelTitle,
                        fill: rightEnergyFill, speed: rightSpeedLabel,
                        center: CGPoint(x: sceneSize.width - GameConfig.fieldInset - 106,
-                                       y: GameConfig.fieldInset + 38))
+                                       y: panelY))
 
         updateScore(home: 0, away: 0)
         setTimer(0)   // football clock counts up from 0:00 to 90:00
