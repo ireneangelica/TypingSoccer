@@ -105,6 +105,10 @@ enum Localization {
         "lobby.cancel": "CANCEL",
         "lobby.noPlayers": "Couldn't find opponents. Try again or cancel.",
         "lobby.retry": "SEARCH AGAIN",
+        "lobby.yourRole": "YOUR ROLE",
+        "lobby.roleField": "PLAYER",
+        "lobby.roleKeeper": "KEEPER",
+        "lobby.masterPicksCountry": "Only the room master can change the country.",
 
         "gc.needSignIn": "Sign in to Game Center",
         "gc.needSignInDetail": "Multiplayer needs Game Center. Open System Settings › Game Center to sign in, then try Find Match again.",
@@ -194,6 +198,10 @@ enum Localization {
         "lobby.cancel": "BATAL",
         "lobby.noPlayers": "Tidak menemukan lawan. Coba lagi atau batal.",
         "lobby.retry": "CARI LAGI",
+        "lobby.yourRole": "PERANMU",
+        "lobby.roleField": "PEMAIN",
+        "lobby.roleKeeper": "KIPER",
+        "lobby.masterPicksCountry": "Hanya room master yang bisa mengganti negara.",
 
         "gc.needSignIn": "Masuk ke Game Center",
         "gc.needSignInDetail": "Multipemain memerlukan Game Center. Buka Pengaturan Sistem › Game Center untuk masuk, lalu coba Cari Pertandingan lagi.",

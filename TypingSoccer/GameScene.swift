@@ -36,8 +36,8 @@ final class GameScene: SKScene {
     var mode: MatchMode = .singlePlayer
     /// In multiplayer, whether this machine is the authoritative host.
     var isNetworkHost = false
-    /// This machine's chair. The host is always `.homeField`. Single player
-    /// uses the default (the human controls the whole team).
+    /// This machine's chair. The host always sits on the home side (field or
+    /// keeper). Single player uses the default (the human runs the whole team).
     var localSeat: PeerSeat = .homeField
     /// Humans per team: 2 in 2v2 (field + keeper), 1 in 1v1 (one human runs the
     /// whole team, keeper included). Single player leaves this at the default.
@@ -1478,7 +1478,7 @@ final class GameScene: SKScene {
               let seat = PeerSeat(rawValue: seatRaw),
               let lane = Lane(rawValue: raw),
               let carrier, controllerSeat(of: carrier) == seat,
-              seat != .homeField,                     // the host passes locally
+              seat != localSeat,                      // the host passes locally
               let target = outfield(carrier.team == .home ? homePlayers : awayPlayers)
                             .first(where: { $0.lane == lane }),
               target !== carrier else { return }

@@ -23,9 +23,10 @@
 //  Sync model: one machine is the AUTHORITATIVE HOST — it picks every duel
 //  word, resolves every duel and decides possession, broadcasting each as a
 //  PeerMessage. The host is ELECTED deterministically once the full table is
-//  present: the connected player with the lowest gamePlayerID. The host owns
-//  seat `homeField`; the coordinator groups the remaining players so the
-//  host's real teammate stays on the host's ("home") side.
+//  present: the connected player with the lowest gamePlayerID. The host sits
+//  on the "home" side (field or keeper seat, per its lobby role pick); the
+//  coordinator groups the remaining players so the host's real teammate stays
+//  on the host's ("home") side.
 //
 //  If a player QUITS mid-match, the match does NOT end: the host promotes
 //  that seat to AI control. Only the host leaving ends the match.
@@ -57,17 +58,18 @@ enum MPMode: Int, Codable {
     var usesParty: Bool { self == .twoVsTwo }
 }
 
-/// One chair in a match. Raw values go over the wire. `homeField` is always
-/// the (elected) host. In 1v1 only `homeField` / `awayField` are used and the
-/// occupant controls the whole team.
+/// One chair in a match. Raw values go over the wire. The elected host always
+/// sits on the HOME side (field seat in 1v1; field or keeper in 2v2 depending
+/// on its lobby role pick). In 1v1 only `homeField` / `awayField` are used and
+/// the occupant controls the whole team.
 enum PeerSeat: Int, Codable, CaseIterable {
-    case homeField = 0      // host — home team's outfielders (+ keeper in 1v1)
+    case homeField = 0      // home team's outfielders (+ keeper in 1v1)
     case homeKeeper = 1     // home team's goalkeeper (2v2 only)
     case awayField = 2      // away team's outfielders (+ keeper in 1v1)
     case awayKeeper = 3     // away team's goalkeeper (2v2 only)
 
     /// On the HOST's team? ("home" in wire terms.)
-    var isHome: Bool { self == .homeField || self == .awayField }
+    var isHome: Bool { self == .homeField || self == .homeKeeper }
     /// Controls the three outfielders (in 2v2, as opposed to the goalkeeper)?
     var isField: Bool { self == .homeField || self == .awayField }
 
@@ -91,10 +93,16 @@ struct PeerPlayerRef: Codable {
 enum PeerMessage: Codable {
 
     // MARK: Lobby / seat assignment
-    /// Every player → all, once the full table connects: my country pick and
-    /// my party room key (nil if I searched solo). The host groups by key so
-    /// teammates share a side, then hands out seats.
-    case hello(country: String, roomKey: String?)
+    /// Every player → all, once the full table connects: my country pick, my
+    /// party room key (nil if I searched solo) and my preferred role. The host
+    /// groups by key so teammates share a side, then hands out seats.
+    case hello(country: String, roomKey: String?, prefersKeeper: Bool)
+    /// 2v2 party, master → teammate: the team's country pick changed. Only the
+    /// room master may change the country; teammates mirror it automatically.
+    case countryUpdate(country: String)
+    /// 2v2 party: the sender claimed this role (keeper or field). The receiver
+    /// takes the complementary role — one team may never have two keepers.
+    case roleUpdate(keeper: Bool)
     /// Host → one player: your assigned seat.
     case seatAssigned(seat: Int)
     /// Host → all: everyone is seated — launch the match.

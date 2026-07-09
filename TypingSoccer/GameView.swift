@@ -50,9 +50,12 @@ final class GameCoordinator: ObservableObject {
     @Published var teammatePresent = false              // 2v2: my teammate has joined
     @Published var teammateName: String = ""            // 2v2: my teammate's display name
     @Published var battleStarted = false                // Battle tapped → searching opponents
+    // 2v2 role pick. Exactly one of the two teammates plays KEEPER, the other
+    // FIELD (the three outfielders). Defaults: master = field, joiner = keeper.
+    @Published var myRoleIsKeeper = false
 
     // Host-side seating bookkeeping, keyed by GameKit gamePlayerID.
-    private var helloInfo: [String: (country: String, roomKey: String?)] = [:]
+    private var helloInfo: [String: (country: String, roomKey: String?, prefersKeeper: Bool)] = [:]
     private var seatAssignment: [String: PeerSeat] = [:]
     private var launchHomeTeamID: String? = nil
     private var launchAwayTeamID: String? = nil
@@ -110,14 +113,36 @@ final class GameCoordinator: ObservableObject {
         screen = .lobby
     }
 
+    /// In a 2v2 party, only the room MASTER may change the team's country;
+    /// the teammate's picker is locked and mirrors the master's choice.
+    var canPickCountry: Bool {
+        guard !battleStarted else { return false }
+        if multiplayerMode == .twoVsTwo, roomKey != nil, !isRoomMaster { return false }
+        return true
+    }
+
     /// Cycle the local player's country pick in the lobby (before matchmaking).
     func cycleMyCountry(next: Bool) {
-        guard screen == .lobby, !battleStarted else { return }
+        guard screen == .lobby, canPickCountry else { return }
         let all = WorldCupTeams.all
         guard !all.isEmpty,
               let idx = all.firstIndex(where: { $0.id == homeWCTeam.id }) else { return }
         let n = all.count
         homeWCTeam = all[next ? (idx + 1) % n : (idx - 1 + n) % n]
+        // Master: mirror the new pick onto the connected teammate (no-op if
+        // the party hasn't formed yet — partyReady re-sends the current pick).
+        if multiplayerMode == .twoVsTwo, isRoomMaster {
+            matchManager.send(.countryUpdate(country: homeWCTeam.id))
+        }
+    }
+
+    /// Claim a lobby role (2v2). The teammate automatically takes the other
+    /// role — a team always fields exactly one keeper and one field player.
+    func selectRole(keeper: Bool) {
+        guard screen == .lobby, multiplayerMode == .twoVsTwo, !battleStarted,
+              myRoleIsKeeper != keeper else { return }
+        myRoleIsKeeper = keeper
+        matchManager.send(.roleUpdate(keeper: keeper))
     }
 
     /// 2v2 master: mint a room code and open a private room for a teammate.
@@ -126,6 +151,7 @@ final class GameCoordinator: ObservableObject {
         let key = GameKitMatchManager.makeRoomKey()
         roomKey = key
         isRoomMaster = true
+        myRoleIsKeeper = false          // master defaults to FIELD
         lobbyStatus = L("lobby.waitingTeammate")
         matchManager.hostRoom(mode: .twoVsTwo, key: key)
     }
@@ -136,6 +162,7 @@ final class GameCoordinator: ObservableObject {
         guard multiplayerMode == .twoVsTwo, roomKey == nil, !battleStarted, key.count >= 3 else { return }
         roomKey = key
         isRoomMaster = false
+        myRoleIsKeeper = true           // joiner defaults to KEEPER
         joinKeyField = ""
         lobbyStatus = L("lobby.joining")
         matchManager.joinRoom(mode: .twoVsTwo, key: key)
@@ -197,6 +224,7 @@ final class GameCoordinator: ObservableObject {
         roomKey = nil
         joinKeyField = ""
         isRoomMaster = false
+        myRoleIsKeeper = false
         teammatePresent = false
         teammateName = ""
         battleStarted = false
@@ -212,9 +240,10 @@ final class GameCoordinator: ObservableObject {
     // MARK: Host-side seat assignment
 
     /// Group the connected players into two balanced teams and hand out seats.
-    /// The elected host keeps `homeField`; its real teammate (same room key, or
-    /// a leftover solo) stays on the home side so the wire "home = host's team"
-    /// convention holds. Runs only once every player's `hello` has arrived.
+    /// The elected host stays on the home side (its lobby role pick decides
+    /// field vs keeper); its real teammate (same room key, or a leftover solo)
+    /// joins it there so the wire "home = host's team" convention holds. Runs
+    /// only once every player's `hello` has arrived.
     private func tryAssignSeats() {
         guard matchManager.isHost, mySeat == nil else { return }
         let ids = matchManager.allPlayerIDs
@@ -224,8 +253,12 @@ final class GameCoordinator: ObservableObject {
         seatAssignment = map
 
         let host = matchManager.localPlayerID
+        // Each team plays as its FIELD player's country. Party teammates
+        // already share the master's pick via `countryUpdate`.
+        let homeFieldID = map.first(where: { $0.value == .homeField })?.key
         let awayFieldID = map.first(where: { $0.value == .awayField })?.key
-        let homeID = helloInfo[host]?.country ?? homeWCTeam.id
+        let homeID = homeFieldID.flatMap { helloInfo[$0]?.country }
+            ?? helloInfo[host]?.country ?? homeWCTeam.id
         let awayID = awayFieldID.flatMap { helloInfo[$0]?.country }
             ?? WorldCupTeams.all.first(where: { $0.id != homeID })?.id
             ?? WorldCupTeams.all[1].id
@@ -276,11 +309,32 @@ final class GameCoordinator: ObservableObject {
             }
         }
         let away = ids.filter { !home.contains($0) }.sorted()
-        var map: [String: PeerSeat] = [host: .homeField]
-        for id in home where id != host { map[id] = .homeKeeper }
-        if let f = away.first { map[f] = .awayField }
-        for id in away.dropFirst() { map[id] = .awayKeeper }
+        var map: [String: PeerSeat] = [:]
+        assignPairSeats(home, field: .homeField, keeper: .homeKeeper, into: &map)
+        assignPairSeats(away, field: .awayField, keeper: .awayKeeper, into: &map)
         return map
+    }
+
+    /// Hand one team pair its field/keeper seats, honouring each player's
+    /// lobby role pick. Party teammates always arrive complementary; if two
+    /// solo strangers asked for the same role, the sorted-first one plays FIELD.
+    private func assignPairSeats(_ pair: [String], field: PeerSeat, keeper: PeerSeat,
+                                 into map: inout [String: PeerSeat]) {
+        guard !pair.isEmpty else { return }
+        guard pair.count >= 2 else { map[pair[0]] = field; return }
+        let a = pair[0], b = pair[1]
+        let aKeeper = helloInfo[a]?.prefersKeeper ?? false
+        let bKeeper = helloInfo[b]?.prefersKeeper ?? false
+        if aKeeper != bKeeper {
+            map[aKeeper ? a : b] = keeper
+            map[aKeeper ? b : a] = field
+        } else {
+            // Same preference (only possible between strangers): break the tie
+            // deterministically so both machines would agree.
+            let sorted = [a, b].sorted()
+            map[sorted[0]] = field
+            map[sorted[1]] = keeper
+        }
     }
 
     /// Configure the scene for MY seat: my team is always the local `.home`.
@@ -438,6 +492,12 @@ extension GameCoordinator: MatchManagerDelegate {
             self.lobbyStatus = self.isRoomMaster
                 ? L("lobby.teammateJoined")
                 : L("lobby.waitingHost")
+            // Master seeds the fresh teammate with the party's current state:
+            // the team country (master's pick) and the master's role claim.
+            if self.isRoomMaster {
+                self.matchManager.send(.countryUpdate(country: self.homeWCTeam.id))
+                self.matchManager.send(.roleUpdate(keeper: self.myRoleIsKeeper))
+            }
         }
     }
 
@@ -451,9 +511,11 @@ extension GameCoordinator: MatchManagerDelegate {
             self.battleStarted = true
             self.lobbyStatus = L("lobby.starting")
             self.helloInfo[self.matchManager.localPlayerID] =
-                (country: self.homeWCTeam.id, roomKey: self.matchManager.roomKey)
+                (country: self.homeWCTeam.id, roomKey: self.matchManager.roomKey,
+                 prefersKeeper: self.myRoleIsKeeper)
             self.matchManager.send(.hello(country: self.homeWCTeam.id,
-                                          roomKey: self.matchManager.roomKey))
+                                          roomKey: self.matchManager.roomKey,
+                                          prefersKeeper: self.myRoleIsKeeper))
             self.tryAssignSeats()
         }
     }
@@ -520,10 +582,24 @@ extension GameCoordinator: MatchManagerDelegate {
             switch message {
 
                 // ---- Lobby / seating ----
-            case .hello(let country, let roomKey):
+            case .hello(let country, let roomKey, let prefersKeeper):
                 guard self.matchManager.isHost, self.screen == .lobby else { break }
-                self.helloInfo[playerID] = (country: country, roomKey: roomKey)
+                self.helloInfo[playerID] = (country: country, roomKey: roomKey,
+                                            prefersKeeper: prefersKeeper)
                 self.tryAssignSeats()
+
+            case .countryUpdate(let country):
+                // Party teammate (non-master): mirror the master's country pick.
+                guard self.screen == .lobby, !self.battleStarted,
+                      self.roomKey != nil, !self.isRoomMaster,
+                      let team = WorldCupTeams.team(named: country) else { break }
+                self.homeWCTeam = team
+
+            case .roleUpdate(let keeper):
+                // My teammate claimed a role — I take the complementary one.
+                guard self.screen == .lobby, !self.battleStarted,
+                      self.roomKey != nil else { break }
+                self.myRoleIsKeeper = !keeper
 
             case .seatAssigned(let seat):
                 guard !self.matchManager.isHost, self.screen == .lobby else { break }
@@ -1045,7 +1121,8 @@ struct LobbyView: View {
                 .foregroundColor(.white.opacity(0.6))
             HStack(spacing: 16) {
                 arrow("‹") { coordinator.cycleMyCountry(next: false) }
-                    .disabled(coordinator.battleStarted)
+                    .disabled(!coordinator.canPickCountry)
+                    .opacity(coordinator.canPickCountry ? 1 : 0.3)
                 VStack(spacing: 4) {
                     Text(coordinator.homeWCTeam.flag).font(.system(size: 40))
                     Text(coordinator.homeWCTeam.name.uppercased())
@@ -1054,7 +1131,14 @@ struct LobbyView: View {
                 }
                 .frame(minWidth: 150)
                 arrow("›") { coordinator.cycleMyCountry(next: true) }
-                    .disabled(coordinator.battleStarted)
+                    .disabled(!coordinator.canPickCountry)
+                    .opacity(coordinator.canPickCountry ? 1 : 0.3)
+            }
+            // Party teammate: the room master owns the country pick.
+            if is2v2, coordinator.roomKey != nil, !coordinator.isRoomMaster {
+                Text(L("lobby.masterPicksCountry"))
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.orange.opacity(0.85))
             }
         }
     }
@@ -1072,6 +1156,8 @@ struct LobbyView: View {
                            filled: coordinator.teammatePresent)
             }
 
+            rolePicker
+
             if !coordinator.battleStarted {
                 if let key = coordinator.roomKey {
                     roomKeyDisplay(key)
@@ -1081,6 +1167,40 @@ struct LobbyView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    /// 2v2 role pick: one teammate plays FIELD (the three outfielders), the
+    /// other KEEPER. Claiming a role hands the teammate the other one.
+    private var rolePicker: some View {
+        VStack(spacing: 6) {
+            Text(L("lobby.yourRole"))
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundColor(.white.opacity(0.6))
+            HStack(spacing: 10) {
+                roleButton(L("lobby.roleField"), keeper: false)
+                roleButton(L("lobby.roleKeeper"), keeper: true)
+            }
+            if coordinator.teammatePresent {
+                Text("\(coordinator.teammateName): \(coordinator.myRoleIsKeeper ? L("lobby.roleField") : L("lobby.roleKeeper"))")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.5))
+            }
+        }
+    }
+
+    private func roleButton(_ title: String, keeper: Bool) -> some View {
+        let selected = coordinator.myRoleIsKeeper == keeper
+        return Button(action: { Audio.button(); coordinator.selectRole(keeper: keeper) }) {
+            Text(title)
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .frame(width: 120, height: 34)
+                .background(selected ? Color.cyan.opacity(0.18) : Color.white.opacity(0.05))
+                .overlay(RoundedRectangle(cornerRadius: 8)
+                    .stroke(selected ? Color.cyan : Color.white.opacity(0.2), lineWidth: 1.4))
+                .foregroundColor(selected ? .cyan : .white.opacity(0.6))
+        }
+        .buttonStyle(.plain)
+        .disabled(coordinator.battleStarted)
     }
 
     private func playerSlot(name: String, filled: Bool) -> some View {
