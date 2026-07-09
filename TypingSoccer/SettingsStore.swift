@@ -81,6 +81,7 @@ enum Localization {
         "menu.multi1v1": "MULTIPLAYER 1v1 (GAME CENTER)",
         "menu.multi2v2": "MULTIPLAYER 2v2 (GAME CENTER)",
         "menu.howto": "HOW TO PLAY",
+        "menu.exit": "EXIT",
         "menu.hint": "Countdown whistle → type the word → first to finish gets the ball.\nCarriers auto-run to goal; defenders intercept with new words.\nKeys 1·2·3: pass when attacking, pick your chaser when defending.",
 
         "lobby.title1v1": "1v1 LOBBY",
@@ -124,6 +125,7 @@ enum Localization {
         "settings.music": "MUSIC",
         "settings.sfx": "SOUND FX",
         "settings.textSize": "TEXT SIZE",
+        "settings.done": "DONE",
 
         "profile.title": "PROFILE",
         "profile.stats": "STATS",
@@ -165,15 +167,21 @@ enum Localization {
         "common.back": "Back",
         "common.you": "YOU",
         "common.ai": "AI",
+        
+        "exit.confirm.title": "Exit Typing Soccer?",
+        "exit.confirm.message": "Are you sure you want to exit?",
+        "exit.confirm.no": "No",
+        "exit.confirm.yes": "Yes",
     ]
 
     static let indonesian: [String: String] = [
         "menu.title": "TYPING SOCCER",
         "menu.tagline": "Ketik cepat. Rebut bola. Cetak gol.",
         "menu.single": "PEMAIN TUNGGAL (vs AI)",
-        "menu.multi1v1": "MULTIPLAYER 1v1 (GAME CENTER)",
-        "menu.multi2v2": "MULTIPLAYER 2v2 (GAME CENTER)",
+        "menu.multi1v1": "PERTANDINGAN 1v1 (GAME CENTER)",
+        "menu.multi2v2": "PERTANDINGAN 2v2 (GAME CENTER)",
         "menu.howto": "CARA BERMAIN",
+        "menu.exit": "KELUAR",
         "menu.hint": "Peluit hitung mundur → ketik kata → yang selesai duluan dapat bola.\nPembawa bola lari otomatis ke gawang; bek memotong dengan kata baru.\nTombol 1·2·3: oper saat menyerang, pilih pengejar saat bertahan.",
 
         "lobby.title1v1": "LOBI 1v1",
@@ -217,6 +225,7 @@ enum Localization {
         "settings.music": "MUSIK",
         "settings.sfx": "EFEK SUARA",
         "settings.textSize": "UKURAN TEKS",
+        "settings.done": "SELESAI",
 
         "profile.title": "PROFIL",
         "profile.stats": "STATISTIK",
@@ -258,5 +267,10 @@ enum Localization {
         "common.back": "Kembali",
         "common.you": "KAMU",
         "common.ai": "AI",
+        
+        "exit.confirm.title": "Keluar dari Typing Soccer?",
+        "exit.confirm.message": "Apakah Anda yakin ingin keluar dari permainan?",
+        "exit.confirm.no": "Tidak",
+        "exit.confirm.yes": "Ya",
     ]
 }

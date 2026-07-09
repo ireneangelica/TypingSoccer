@@ -840,7 +840,7 @@ struct MenuView: View {
                 menuButton(L("menu.howto")) {
                     coordinator.screen = .howToPlay
                 }
-                menuButton(L("EXIT")) {
+                menuButton(L("menu.exit")) {
                     Audio.button()
                     withAnimation(.easeOut(duration: 0.18)) {
                         showExitConfirm = true
@@ -906,19 +906,20 @@ private struct ExitConfirmOverlay: View {
                         Color(red: 238/255, green: 170/255, blue: 82/255)
                     )
                 
-                Text(L("Exit Typing Soccer?"))
+                Text(L("exit.confirm.title"))
                     .font(.system(size: 22, weight: .heavy, design: .monospaced))
                     .textCase(.uppercase)
                     .foregroundColor(.yellow)
+                    .multilineTextAlignment(.center)
                 
-                Text(L("Are you sure you want to quit?"))
+                Text(L("exit.confirm.message"))
                     .font(.system(size: 14, design: .monospaced))
                     .foregroundColor(.white.opacity(0.75))
                     .multilineTextAlignment(.center)
                 
                 HStack(spacing: 14) {
                     Button(action: onCancel) {
-                        Text(L("No"))
+                        Text(L("exit.confirm.no"))
                             .font(.system(size: 15, weight: .bold, design: .monospaced))
                             .textCase(.uppercase)
                             .frame(width: 130, height: 42)
@@ -931,7 +932,7 @@ private struct ExitConfirmOverlay: View {
                     .buttonStyle(.plain)
                     
                     Button(action: onConfirm) {
-                        Text(L("Yes"))
+                        Text(L("exit.confirm.yes"))
                             .font(.system(size: 15, weight: .bold, design: .monospaced))
                             .textCase(.uppercase)
                             .frame(width: 130, height: 42)
