@@ -1,15 +1,68 @@
 {
   "images" : [
-    { "idiom" : "mac", "scale" : "1x", "size" : "16x16" },
-    { "idiom" : "mac", "scale" : "2x", "size" : "16x16" },
-    { "idiom" : "mac", "scale" : "1x", "size" : "32x32" },
-    { "idiom" : "mac", "scale" : "2x", "size" : "32x32" },
-    { "idiom" : "mac", "scale" : "1x", "size" : "128x128" },
-    { "idiom" : "mac", "scale" : "2x", "size" : "128x128" },
-    { "idiom" : "mac", "scale" : "1x", "size" : "256x256" },
-    { "idiom" : "mac", "scale" : "2x", "size" : "256x256" },
-    { "idiom" : "mac", "scale" : "1x", "size" : "512x512" },
-    { "idiom" : "mac", "scale" : "2x", "size" : "512x512" }
+    {
+      "filename" : "ICON 8.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "16x16"
+    },
+    {
+      "filename" : "ICON 7.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "size" : "16x16"
+    },
+    {
+      "filename" : "ICON 6.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "32x32"
+    },
+    {
+      "filename" : "ICON 5.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "size" : "32x32"
+    },
+    {
+      "filename" : "ICON 4.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "128x128"
+    },
+    {
+      "filename" : "ICON 3.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "size" : "128x128"
+    },
+    {
+      "filename" : "ICON 2.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "256x256"
+    },
+    {
+      "filename" : "ICON 1.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "size" : "256x256"
+    },
+    {
+      "filename" : "ICON.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "512x512"
+    },
+    {
+      "filename" : "1024.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "size" : "512x512"
+    }
   ],
-  "info" : { "author" : "xcode", "version" : 1 }
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
 }
