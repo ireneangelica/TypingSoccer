@@ -974,6 +974,7 @@ struct TeamSelectionView: View {
     )
     
     var body: some View {
+        ScrollView(.vertical, showsIndicators: true) {
         VStack(spacing: 28) {
             
             ZStack {
@@ -1171,6 +1172,7 @@ struct TeamSelectionView: View {
             }
         }
         .padding(30)
+    }
     }
 }
 
