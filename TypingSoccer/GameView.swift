@@ -976,67 +976,374 @@ struct TeamSelectionView: View {
     
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
-        VStack(spacing: 28) {
+            VStack(spacing: 28) {
+                
+                ZStack {
+                    VStack(spacing: 8) {
+                        Text(isMultiplayer ? "Multiplayer Match Setup" : "Single Player Match Setup")
+                            .font(.system(size: 34, weight: .heavy))
+                            .foregroundStyle(.yellow)
+                            .multilineTextAlignment(.center)
+                            .textCase(.uppercase)
+                        
+                        Text("Choose Your Nationality")
+                            .font(.title)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                        
+                        Text(isMultiplayer
+                             ? "Pick the nationality you want to play as, then find a match on Game Center."
+                             : "Pick the nationality you want to play as. The AI will automatically choose a different team.")
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                    }
+                    
+                    HStack {
+                        Button {
+                            Audio.button()
+                            coordinator.screen = .menu
+                        } label: {
+                            Image(systemName: "arrowshape.turn.up.backward.fill")
+                                .font(.system(size: 40, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal)
+                
+                Spacer()
+                
+                LazyVGrid(columns: columns, spacing: 18) {
+                    
+                    ForEach(WorldCupTeams.all.sorted { $0.name < $1.name }) { team in
+                        
+                        Button {
+                            Audio.button()
+                            selectedTeam = team
+                            coordinator.homeWCTeam = team
+                            
+                            guard !isMultiplayer else { return }
+                            let opponents = WorldCupTeams.all.filter {
+                                $0.id != team.id
+                            }
+                            aiTeam = nil   // Clear previous AI selection
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                let randomOpponent = opponents.randomElement()!
+                                aiTeam = randomOpponent
+                                coordinator.awayWCTeam = randomOpponent
+                            }
+                            
+                        } label: {
+                            
+                            ZStack(alignment: .topTrailing) {
+                                
+                                VStack(spacing: 8) {
+                                    
+                                    Text(team.flag)
+                                        .font(.system(size: 48))
+                                    
+                                    Text(team.name)
+                                        .font(.system(size: 14,
+                                                      weight: .bold,
+                                                      design: .monospaced))
+                                        .foregroundColor(.white)
+                                }
+                                .frame(width: 170, height: 120)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(
+                                            selectedTeam?.id == team.id
+                                            ? Color.black.opacity(0.65)
+                                            : Color.black.opacity(0.45)
+                                        )
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(
+                                            selectedTeam?.id == team.id
+                                            ? Color.yellow
+                                            : Color.white.opacity(0.15),
+                                            lineWidth: selectedTeam?.id == team.id ? 3 : 1
+                                        )
+                                )
+                                
+                                if selectedTeam?.id == team.id {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundStyle(.yellow)
+                                        .offset(x: -8, y: 8)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                
+                if !isMultiplayer {
+                    HStack {
+                        // MARK: Player
+                        
+                        VStack(spacing: 12) {
+                            
+                            Text(L("common.you"))
+                                .font(.headline)
+                                .foregroundColor(.white.opacity(0.8))
+                            
+                            if let selectedTeam {
+                                
+                                VStack {
+                                    Text(selectedTeam.flag)
+                                        .font(.system(size: 60))
+                                    
+                                    Text(selectedTeam.name)
+                                        .font(.title3.bold())
+                                        .foregroundColor(.white)
+                                }
+                                
+                            } else {
+                                Text("Waiting...")
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                        }
+                        
+                        VStack {
+                            Spacer()
+                            
+                            Text("VS")
+                                .font(.system(size: 28,
+                                              weight: .black,
+                                              design: .monospaced))
+                                .foregroundColor(.yellow)
+                            
+                            Spacer()
+                        }
+                        .frame(width: 60)
+                        
+                        // MARK: AI
+                        
+                        VStack(spacing: 12) {
+                            
+                            Text(L("common.ai"))
+                                .font(.headline)
+                                .foregroundColor(.white.opacity(0.8))
+                            
+                            if let aiTeam {
+                                
+                                VStack {
+                                    Text(aiTeam.flag)
+                                        .font(.system(size: 60))
+                                    
+                                    Text(aiTeam.name)
+                                        .font(.title3.bold())
+                                        .foregroundColor(.white)
+                                }
+                                
+                            } else {
+                                
+                                Text("Waiting...")
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                        }
+                    }
+                }
+                
+                if isMultiplayer ? selectedTeam != nil : aiTeam != nil {
+                    
+                    Button {
+                        Audio.button()
+                        coordinator.startSinglePlayer()
+                    } label: {
+                        
+                        Text(isMultiplayer ? "Find Match" : "Start Match")
+                            .font(.title2.bold())
+                            .bold(true)
+                            .textCase(.uppercase)
+                            .frame(width: 200, height: 25)
+                            .padding()
+                            .background(Color.yellow)
+                            .foregroundColor(.black)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .padding(30)
+        }
+    }
+}
+
+/// Pre-match lobby. The player picks their country here. In 2v2 they gather a
+/// teammate first (the master mints a key; the teammate types it), then tap
+/// Battle to matchmake a balanced opposing side. 1v1 just taps Battle.
+struct LobbyView: View {
+    @EnvironmentObject var coordinator: GameCoordinator
+    
+    @State private var selectedTeam: WCTeam?
+    
+    private var is2v2: Bool { coordinator.multiplayerMode == .twoVsTwo }
+    
+    //    var body: some View {
+    //        VStack(spacing: 24) {
+    //
+    //            ZStack {
+    //
+    //                VStack(spacing: 8) {
+    //
+    //                    Text(is2v2 ? "Multiplayer 2v2 Match Setup" : "Multiplayer 1v1 Match Setup")
+    //                        .font(.system(size: 34, weight: .heavy))
+    //                        .foregroundStyle(.yellow)
+    //                        .multilineTextAlignment(.center)
+    //                        .textCase(.uppercase)
+    //
+    //                    Text("Choose Your Nationality")
+    //                        .font(.title)
+    //                        .fontWeight(.semibold)
+    //                        .foregroundStyle(.white)
+    //
+    //                    Text("Pick the nationality you want to play as before entering matchmaking.")
+    //                        .font(.body)
+    //                        .foregroundStyle(.white.opacity(0.5))
+    //                        .multilineTextAlignment(.center)
+    //                        .padding(.horizontal, 40)
+    //                }
+    //
+    //                HStack {
+    //
+    //                    Button {
+    //                        Audio.button()
+    //                        coordinator.cancelLobby()
+    //                    } label: {
+    //                        Image(systemName: "arrowshape.turn.up.backward.fill")
+    //                            .font(.system(size: 40, weight: .bold))
+    //                            .foregroundStyle(.white)
+    //                    }
+    //                    .buttonStyle(.plain)
+    //
+    //                    Spacer()
+    //                }
+    //            }
+    //            .padding(.horizontal)
+    //
+    //            countryPicker
+    //
+    //            if is2v2 { partySection }
+    //
+    //            if coordinator.battleStarted {
+    //                searchingRow
+    //            } else if !coordinator.matchmakingFailed {
+    //                battleButton
+    //            }
+    //
+    //            if coordinator.matchmakingFailed {
+    //                Text(L("lobby.noPlayers"))
+    //                    .font(.system(size: 12, design: .monospaced))
+    //                    .foregroundColor(.orange)
+    //                actionButton(L("lobby.retry"), filled: true) { coordinator.retryBattle() }
+    //            }
+    //        }
+    //        .padding(36)
+    //        .frame(maxWidth: 560)
+    //    }
+    
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: true) {
             
-            ZStack {
-                VStack(spacing: 8) {
-                    Text(isMultiplayer ? "Multiplayer Match Setup" : "Single Player Match Setup")
+            VStack(spacing: 24) {
+                
+                ZStack {
+                    
+                    VStack(spacing: 8) {
+                        
+                        Text(is2v2 ? "Multiplayer 2v2 Match Setup"
+                             : "Multiplayer 1v1 Match Setup")
                         .font(.system(size: 34, weight: .heavy))
                         .foregroundStyle(.yellow)
                         .multilineTextAlignment(.center)
                         .textCase(.uppercase)
+                        
+                        Text("Choose Your Nationality")
+                            .font(.title)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                        
+                        Text("Pick the nationality you want to play as before entering matchmaking.")
+                            .font(.body)
+                            .foregroundStyle(.white.opacity(0.5))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
                     
-                    Text("Choose Your Nationality")
-                        .font(.title)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                    
-                    Text(isMultiplayer
-                         ? "Pick the nationality you want to play as, then find a match on Game Center."
-                         : "Pick the nationality you want to play as. The AI will automatically choose a different team.")
-                    .font(.body)
-                    .foregroundStyle(.white.opacity(0.5))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
+                    HStack {
+                        
+                        Button {
+                            Audio.button()
+                            coordinator.cancelLobby()
+                        } label: {
+                            Image(systemName: "arrowshape.turn.up.backward.fill")
+                                .font(.system(size: 40, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal)
+                
+                countryPicker
+                
+                if is2v2 {
+                    partySection
                 }
                 
-                HStack {
-                    Button {
-                        Audio.button()
-                        coordinator.screen = .menu
-                    } label: {
-                        Image(systemName: "arrowshape.turn.up.backward.fill")
-                            .font(.system(size: 40, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                    .buttonStyle(.plain)
+                if coordinator.battleStarted {
+                    searchingRow
+                } else if !coordinator.matchmakingFailed {
+                    battleButton
+                }
+                
+                if coordinator.matchmakingFailed {
                     
-                    Spacer()
+                    Text(L("lobby.noPlayers"))
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(.orange)
+                    
+                    actionButton(L("lobby.retry"), filled: true) {
+                        coordinator.retryBattle()
+                    }
                 }
             }
-            .padding(.horizontal)
-            
-            Spacer()
+            .padding(30)
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
+    }
+    
+    // MARK: My country
+    
+    private let columns = Array(
+        repeating: GridItem(.fixed(170), spacing: 20),
+        count: 3
+    )
+    
+    private var countryPicker: some View {
+        
+        VStack(spacing: 18) {
             
             LazyVGrid(columns: columns, spacing: 18) {
                 
                 ForEach(WorldCupTeams.all.sorted { $0.name < $1.name }) { team in
                     
                     Button {
+                        
                         Audio.button()
+                        
                         selectedTeam = team
                         coordinator.homeWCTeam = team
-                        
-                        guard !isMultiplayer else { return }
-                        let opponents = WorldCupTeams.all.filter {
-                            $0.id != team.id
-                        }
-                        aiTeam = nil   // Clear previous AI selection
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                            let randomOpponent = opponents.randomElement()!
-                            aiTeam = randomOpponent
-                            coordinator.awayWCTeam = randomOpponent
-                        }
                         
                     } label: {
                         
@@ -1073,6 +1380,7 @@ struct TeamSelectionView: View {
                             )
                             
                             if selectedTeam?.id == team.id {
+                                
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.system(size: 24))
                                     .foregroundStyle(.yellow)
@@ -1081,165 +1389,16 @@ struct TeamSelectionView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    //                    .disabled(coordinator.battleStarted)
                 }
             }
             
-            if !isMultiplayer {
-                HStack {
-                    // MARK: Player
-                    
-                    VStack(spacing: 12) {
-                        
-                        Text(L("common.you"))
-                            .font(.headline)
-                            .foregroundColor(.white.opacity(0.8))
-                        
-                        if let selectedTeam {
-                            
-                            VStack {
-                                Text(selectedTeam.flag)
-                                    .font(.system(size: 60))
-                                
-                                Text(selectedTeam.name)
-                                    .font(.title3.bold())
-                                    .foregroundColor(.white)
-                            }
-                            
-                        } else {
-                            Text("Waiting...")
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                    }
-                    
-                    VStack {
-                        Spacer()
-                        
-                        Text("VS")
-                            .font(.system(size: 28,
-                                          weight: .black,
-                                          design: .monospaced))
-                            .foregroundColor(.yellow)
-                        
-                        Spacer()
-                    }
-                    .frame(width: 60)
-                    
-                    // MARK: AI
-                    
-                    VStack(spacing: 12) {
-                        
-                        Text(L("common.ai"))
-                            .font(.headline)
-                            .foregroundColor(.white.opacity(0.8))
-                        
-                        if let aiTeam {
-                            
-                            VStack {
-                                Text(aiTeam.flag)
-                                    .font(.system(size: 60))
-                                
-                                Text(aiTeam.name)
-                                    .font(.title3.bold())
-                                    .foregroundColor(.white)
-                            }
-                            
-                        } else {
-                            
-                            Text("Waiting...")
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                    }
-                }
-            }
-            
-            if isMultiplayer ? selectedTeam != nil : aiTeam != nil {
+            if is2v2,
+               coordinator.roomKey != nil,
+               !coordinator.isRoomMaster {
                 
-                Button {
-                    Audio.button()
-                    coordinator.startSinglePlayer()
-                } label: {
-                    
-                    Text(isMultiplayer ? "Find Match" : "Start Match")
-                        .font(.title2.bold())
-                        .bold(true)
-                        .textCase(.uppercase)
-                        .frame(width: 200, height: 25)
-                        .padding()
-                        .background(Color.yellow)
-                        .foregroundColor(.black)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-        }
-        .padding(30)
-    }
-    }
-}
-
-/// Pre-match lobby. The player picks their country here. In 2v2 they gather a
-/// teammate first (the master mints a key; the teammate types it), then tap
-/// Battle to matchmake a balanced opposing side. 1v1 just taps Battle.
-struct LobbyView: View {
-    @EnvironmentObject var coordinator: GameCoordinator
-    
-    private var is2v2: Bool { coordinator.multiplayerMode == .twoVsTwo }
-    
-    var body: some View {
-        VStack(spacing: 18) {
-            Text(is2v2 ? L("lobby.title2v2") : L("lobby.title1v1"))
-                .font(.system(size: 26, weight: .heavy, design: .monospaced))
-                .foregroundColor(.yellow)
-            
-            countryPicker
-            
-            if is2v2 { partySection }
-            
-            if coordinator.battleStarted {
-                searchingRow
-            } else if !coordinator.matchmakingFailed {
-                battleButton
-            }
-            
-            if coordinator.matchmakingFailed {
-                Text(L("lobby.noPlayers"))
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundColor(.orange)
-                actionButton(L("lobby.retry"), filled: true) { coordinator.retryBattle() }
-            }
-            
-            actionButton(L("lobby.cancel"), filled: false) { coordinator.cancelLobby() }
-        }
-        .padding(36)
-        .frame(maxWidth: 560)
-    }
-    
-    // MARK: My country
-    
-    private var countryPicker: some View {
-        VStack(spacing: 8) {
-            Text(L("lobby.yourCountry"))
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
-                .foregroundColor(.white.opacity(0.6))
-            HStack(spacing: 16) {
-                arrow("‹") { coordinator.cycleMyCountry(next: false) }
-                    .disabled(!coordinator.canPickCountry)
-                    .opacity(coordinator.canPickCountry ? 1 : 0.3)
-                VStack(spacing: 4) {
-                    Text(coordinator.homeWCTeam.flag).font(.system(size: 40))
-                    Text(coordinator.homeWCTeam.name.uppercased())
-                        .font(.system(size: 13, weight: .heavy, design: .monospaced))
-                        .foregroundColor(.white)
-                }
-                .frame(minWidth: 150)
-                arrow("›") { coordinator.cycleMyCountry(next: true) }
-                    .disabled(!coordinator.canPickCountry)
-                    .opacity(coordinator.canPickCountry ? 1 : 0.3)
-            }
-            // Party teammate: the room master owns the country pick.
-            if is2v2, coordinator.roomKey != nil, !coordinator.isRoomMaster {
                 Text(L("lobby.masterPicksCountry"))
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.orange.opacity(0.85))
             }
         }
@@ -1363,17 +1522,30 @@ struct LobbyView: View {
     // MARK: Battle / status
     
     private var battleButton: some View {
-        Button(action: { Audio.button(); coordinator.startBattle() }) {
+        let enabled = selectedTeam != nil && coordinator.canTapBattle
+        
+        return Button(action: {
+            Audio.button()
+            coordinator.startBattle()
+        }) {
             Text(L("lobby.battle"))
                 .font(.system(size: 18, weight: .black, design: .monospaced))
                 .textCase(.uppercase)
                 .frame(width: 240, height: 50)
-                .background(coordinator.canTapBattle ? Color.yellow : Color.yellow.opacity(0.2))
-                .foregroundColor(coordinator.canTapBattle ? .black : .white.opacity(0.4))
+                .background(
+                    enabled
+                    ? Color.yellow
+                    : Color.yellow.opacity(0.2)
+                )
+                .foregroundColor(
+                    enabled
+                    ? .black
+                    : .white.opacity(0.4)
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
-        .disabled(!coordinator.canTapBattle)
+        .disabled(!enabled)
     }
     
     private var searchingRow: some View {
