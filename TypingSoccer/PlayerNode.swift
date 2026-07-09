@@ -286,15 +286,23 @@ final class PlayerNode: SKNode {
         ring.isHidden = true
         addChild(ring)
 
-        if isGoalkeeper {
-            let label = SKLabelNode(text: "GK")
-            label.fontName = "Menlo-Bold"
-            label.fontSize = 11
-            label.fontColor = .white
-            label.verticalAlignmentMode = .center
-            label.zPosition = 1   // sit above the sprite
-            addChild(label)
-        }
+//        if isGoalkeeper {
+//            let label = SKLabelNode(text: "GK")
+//            label.fontName = "Menlo-Bold"
+//            label.fontSize = 11
+//            label.fontColor = .white
+//            label.verticalAlignmentMode = .center
+//            label.zPosition = 1   // sit above the sprite
+//            addChild(label)
+//        }
+        
+        let label = SKLabelNode(text: labelText())
+        label.fontName = "Menlo-Bold"
+        label.fontSize = 11
+        label.fontColor = .white
+        label.verticalAlignmentMode = .center
+        label.zPosition = 1
+        addChild(label)
 
         // Real name under the circle (World Cup mode only).
         if let playerName {
@@ -306,6 +314,19 @@ final class PlayerNode: SKNode {
             name.position = CGPoint(x: 0, y: -r - 7)
             name.zPosition = 1
             addChild(name)
+        }
+    }
+    
+    private func labelText() -> String {
+        if isGoalkeeper { return "GK" }
+
+        switch lane {
+        case .top:
+            return "1"
+        case .middle:
+            return "2"
+        case .bottom:
+            return "3"
         }
     }
 
