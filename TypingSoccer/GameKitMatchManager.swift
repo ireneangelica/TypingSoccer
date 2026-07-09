@@ -123,6 +123,10 @@ enum PeerMessage: Codable {
     case possession(player: PeerPlayerRef, x: Double, y: Double, mustPass: Bool)
     case passStarted(target: PeerPlayerRef, offside: Bool, lineX: Double)
     case chaseState(homeTeam: Bool, lane: Int)             // committed chase assignment
+    /// Host → all, a few times a second: the authoritative match clock so every
+    /// screen shows the same minute. `elapsed` is frozen base seconds; while in
+    /// stoppage `addedElapsed` counts the "+N" up. Prevents clocks drifting.
+    case clockSync(elapsed: Double, addedElapsed: Double)
     case addedTime
     case breakNow(kind: Int, shootoutGoalRight: Bool?)     // 0 HT, 1 ET, 2 ET-HT, 3 pens, 4 full time
     /// Host → all: a seat's human left mid-match; the AI now runs it.
@@ -381,9 +385,13 @@ final class GameKitMatchManager: NSObject {
     /// Broadcast to every player, or to specific `playerIDs` when given.
     func send(_ message: PeerMessage, to playerIDs: [String]? = nil) {
         guard let match else { return }
-        // Live typing progress is cosmetic — send it unreliably.
+        // Live typing progress and the clock tick are cosmetic and high-rate —
+        // send them unreliably so they never queue behind reliable traffic.
         let mode: GKMatch.SendDataMode
-        if case .typingProgress = message { mode = .unreliable } else { mode = .reliable }
+        switch message {
+        case .typingProgress, .clockSync: mode = .unreliable
+        default:                          mode = .reliable
+        }
         do {
             let data = try JSONEncoder().encode(message)
             if let playerIDs {

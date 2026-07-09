@@ -191,6 +191,7 @@ final class GameScene: SKScene {
 
     // Clocks
     private var statPanelAccumulator: TimeInterval = 0
+    private var clockSyncAccumulator: TimeInterval = 0   // host: throttles clock broadcasts
     private var lastUpdate: TimeInterval = 0
     private var elapsed: TimeInterval = 0            // real seconds of play so far
 
@@ -1118,18 +1119,18 @@ final class GameScene: SKScene {
         // Energy: ticks only while the ball is in open play — drains for anyone
         // who ran this frame, regenerates for anyone standing still. Outside
         // open play energy is frozen; only half-time / extra-time breaks give
-        // back a chunk. Single-player only (peers can't sync stamina yet).
-        if mode == .singlePlayer {
-            if case .running = phase {
-                for p in allPlayers { p.tickEnergy(deltaTime: dt) }
-            }
-            // Refresh the stat panels ~10×/sec instead of every frame:
-            // each refresh may re-rasterize label textures.
-            statPanelAccumulator += dt
-            if statPanelAccumulator >= 0.1 {
-                statPanelAccumulator = 0
-                updateStatPanels()
-            }
+        // back a chunk. Runs in every mode: each machine simulates the same
+        // movement locally (positions re-align on the host's possession
+        // messages), so the bars stay close enough without a stamina channel.
+        if case .running = phase {
+            for p in allPlayers { p.tickEnergy(deltaTime: dt) }
+        }
+        // Refresh the stat panels ~10×/sec instead of every frame:
+        // each refresh may re-rasterize label textures.
+        statPanelAccumulator += dt
+        if statPanelAccumulator >= 0.1 {
+            statPanelAccumulator = 0
+            updateStatPanels()
         }
 
         // Match clock: real seconds count up, shown as a 0–90' football clock
@@ -1170,6 +1171,15 @@ final class GameScene: SKScene {
                     }
                 }
             }
+            // Host: push the authoritative clock a few times a second so every
+            // screen renders the same minute (issue: clocks drifting apart).
+            if isNetworkHost {
+                clockSyncAccumulator += dt
+                if clockSyncAccumulator >= GameConfig.clockSyncInterval {
+                    clockSyncAccumulator = 0
+                    broadcast(.clockSync(elapsed: elapsed, addedElapsed: addedTimeElapsed))
+                }
+            }
         }
 
         // Ball follows its carrier (unless a shot is mid-flight).
@@ -1184,12 +1194,29 @@ final class GameScene: SKScene {
             hud.setStatPanelsHidden(true)
             return
         }
-        let homeShown = c.team == .home ? c : nearestOutfielder(of: .home, to: c.position)
+        // Left = the local player's own team (`.home` on every machine); right =
+        // the opponent. The own-team panel spotlights the player THIS human
+        // controls: a 2v2 keeper always sees their keeper; everyone else (field
+        // seat, 1v1, single player) sees the ball-relevant outfielder — the
+        // carrier on offense, the one nearest the ball on defense. The opponent
+        // panel just follows the ball.
+        let homeShown = spotlightPlayer(for: .home, carrier: c)
         let awayShown = c.team == .away ? c : nearestOutfielder(of: .away, to: c.position)
         hud.updateStatPanel(left: true, title: panelTitle(homeShown),
                             energy: homeShown.energy, speed: homeShown.currentSpeed)
         hud.updateStatPanel(left: false, title: panelTitle(awayShown),
                             energy: awayShown.energy, speed: awayShown.currentSpeed)
+    }
+
+    /// The player to spotlight for a team's stat panel. The local player's own
+    /// team (`.home`) is role-aware: a 2v2 keeper seat always shows its keeper.
+    /// Otherwise (and always for the opponent) it's ball-relevant: the carrier
+    /// if that team has the ball, else the outfielder nearest the ball.
+    private func spotlightPlayer(for team: Team, carrier c: PlayerNode) -> PlayerNode {
+        if team == .home, teamSize == 2, !localIsField, mode == .multiplayer {
+            return homeKeeper
+        }
+        return c.team == team ? c : nearestOutfielder(of: team, to: c.position)
     }
 
     private func panelTitle(_ p: PlayerNode) -> String {
@@ -2009,11 +2036,34 @@ final class GameScene: SKScene {
     func applyRemoteAddedTime() {
         guard isNetPeer else { return }
         hud?.showToast("ADDED TIME")
+        // Mirror the host's stoppage so the joiner FREEZES its base clock and
+        // counts the "+N" up too — otherwise its clock ran on past 45'/90'
+        // while the host held, splitting the two displays. The break kind
+        // follows the current stage, exactly as the host derives it.
+        switch stage {
+        case .regular1: pendingBreak = .half
+        case .regular2: pendingBreak = .full
+        case .et1:      pendingBreak = .etHalf
+        case .et2:      pendingBreak = .etFull
+        case .shootout: break
+        }
+        addedTimeElapsed = 0
+    }
+
+    /// Joiner: adopt the host's authoritative match clock (issue: clock drift).
+    /// We keep advancing locally between syncs for smoothness and just snap to
+    /// the host's value here, so the two screens can never drift apart.
+    func applyRemoteClock(elapsed: Double, addedElapsed: Double) {
+        guard isNetPeer else { return }
+        self.elapsed = elapsed
+        self.addedTimeElapsed = addedElapsed
     }
 
     /// Joiner: the host called a break / stage transition.
     func applyRemoteBreak(kind: Int, shootoutGoalRight: Bool?) {
         guard isNetPeer, netReady else { return }
+        pendingBreak = nil                  // stoppage resolved into the transition
+        addedTimeElapsed = 0
         pendingRemoteDuel = nil
         pendingRemotePossession = nil
         holdingPossessionEvents = false

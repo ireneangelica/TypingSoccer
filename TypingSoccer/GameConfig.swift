@@ -62,6 +62,10 @@ enum GameConfig {
     static let matchLengthSeconds: TimeInterval = 120
     /// Displayed football minutes across the whole match.
     static let displayMatchMinutes: Double = 90
+    /// Multiplayer: how often (real seconds) the host broadcasts the match
+    /// clock so joiners can't drift. Small enough to stay tight, cheap enough
+    /// to send unreliably every few frames.
+    static let clockSyncInterval: TimeInterval = 0.5
 
     // MARK: Extra time / penalties
     /// Each extra-time half shows as 15 football minutes (played at the same

@@ -638,6 +638,8 @@ extension GameCoordinator: MatchManagerDelegate {
                                                   mustPass: mustPass)
             case .passStarted(let target, let offside, let lineX):
                 self.scene?.applyRemotePass(targetRef: target, offside: offside, lineX: lineX)
+            case .clockSync(let elapsed, let addedElapsed):
+                self.scene?.applyRemoteClock(elapsed: elapsed, addedElapsed: addedElapsed)
             case .addedTime:
                 self.scene?.applyRemoteAddedTime()
             case .breakNow(let kind, let shootoutGoalRight):
