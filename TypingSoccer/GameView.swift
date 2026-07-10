@@ -963,21 +963,21 @@ private struct ExitConfirmOverlay: View {
 
 //struct TeamSelectionView: View {
 //    @EnvironmentObject var coordinator: GameCoordinator
-//    
+//
 //    let isMultiplayer: Bool
-//    
+//
 //    @State private var selectedTeam: WCTeam?
 //    @State private var aiTeam: WCTeam?
-//    
+//
 //    private let columns = Array(
 //        repeating: GridItem(.fixed(170), spacing: 20),
 //        count: 3
 //    )
-//    
+//
 //    var body: some View {
 //        ScrollView(.vertical, showsIndicators: true) {
 //            VStack(spacing: 28) {
-//                
+//
 //                ZStack {
 //                    VStack(spacing: 8) {
 //                        Text(isMultiplayer ? "Multiplayer Match Setup" : "Single Player Match Setup")
@@ -985,12 +985,12 @@ private struct ExitConfirmOverlay: View {
 //                            .foregroundStyle(.yellow)
 //                            .multilineTextAlignment(.center)
 //                            .textCase(.uppercase)
-//                        
+//
 //                        Text("Choose Your Nationality")
 //                            .font(.title)
 //                            .fontWeight(.semibold)
 //                            .foregroundStyle(.white)
-//                        
+//
 //                        Text(isMultiplayer
 //                             ? "Pick the nationality you want to play as, then find a match on Game Center."
 //                             : "Pick the nationality you want to play as. The AI will automatically choose a different team.")
@@ -999,7 +999,7 @@ private struct ExitConfirmOverlay: View {
 //                        .multilineTextAlignment(.center)
 //                        .padding(.horizontal, 40)
 //                    }
-//                    
+//
 //                    HStack {
 //                        Button {
 //                            Audio.button()
@@ -1010,23 +1010,23 @@ private struct ExitConfirmOverlay: View {
 //                                .foregroundStyle(.white)
 //                        }
 //                        .buttonStyle(.plain)
-//                        
+//
 //                        Spacer()
 //                    }
 //                }
 //                .padding(.horizontal)
-//                
+//
 //                Spacer()
-//                
+//
 //                LazyVGrid(columns: columns, spacing: 18) {
-//                    
+//
 //                    ForEach(WorldCupTeams.all.sorted { $0.name < $1.name }) { team in
-//                        
+//
 //                        Button {
 //                            Audio.button()
 //                            selectedTeam = team
 //                            coordinator.homeWCTeam = team
-//                            
+//
 //                            guard !isMultiplayer else { return }
 //                            let opponents = WorldCupTeams.all.filter {
 //                                $0.id != team.id
@@ -1037,16 +1037,16 @@ private struct ExitConfirmOverlay: View {
 //                                aiTeam = randomOpponent
 //                                coordinator.awayWCTeam = randomOpponent
 //                            }
-//                            
+//
 //                        } label: {
-//                            
+//
 //                            ZStack(alignment: .topTrailing) {
-//                                
+//
 //                                VStack(spacing: 8) {
-//                                    
+//
 //                                    Text(team.flag)
 //                                        .font(.system(size: 48))
-//                                    
+//
 //                                    Text(team.name)
 //                                        .font(.system(size: 14,
 //                                                      weight: .bold,
@@ -1071,7 +1071,7 @@ private struct ExitConfirmOverlay: View {
 //                                            lineWidth: selectedTeam?.id == team.id ? 3 : 1
 //                                        )
 //                                )
-//                                
+//
 //                                if selectedTeam?.id == team.id {
 //                                    Image(systemName: "checkmark.circle.fill")
 //                                        .font(.system(size: 24))
@@ -1083,82 +1083,82 @@ private struct ExitConfirmOverlay: View {
 //                        .buttonStyle(.plain)
 //                    }
 //                }
-//                
+//
 //                if !isMultiplayer {
 //                    HStack {
 //                        // MARK: Player
-//                        
+//
 //                        VStack(spacing: 12) {
-//                            
+//
 //                            Text(L("common.you"))
 //                                .font(.headline)
 //                                .foregroundColor(.white.opacity(0.8))
-//                            
+//
 //                            if let selectedTeam {
-//                                
+//
 //                                VStack {
 //                                    Text(selectedTeam.flag)
 //                                        .font(.system(size: 60))
-//                                    
+//
 //                                    Text(selectedTeam.name)
 //                                        .font(.title3.bold())
 //                                        .foregroundColor(.white)
 //                                }
-//                                
+//
 //                            } else {
 //                                Text("Waiting...")
 //                                    .foregroundColor(.white.opacity(0.6))
 //                            }
 //                        }
-//                        
+//
 //                        VStack {
 //                            Spacer()
-//                            
+//
 //                            Text("VS")
 //                                .font(.system(size: 28,
 //                                              weight: .black,
 //                                              design: .monospaced))
 //                                .foregroundColor(.yellow)
-//                            
+//
 //                            Spacer()
 //                        }
 //                        .frame(width: 60)
-//                        
+//
 //                        // MARK: AI
-//                        
+//
 //                        VStack(spacing: 12) {
-//                            
+//
 //                            Text(L("common.ai"))
 //                                .font(.headline)
 //                                .foregroundColor(.white.opacity(0.8))
-//                            
+//
 //                            if let aiTeam {
-//                                
+//
 //                                VStack {
 //                                    Text(aiTeam.flag)
 //                                        .font(.system(size: 60))
-//                                    
+//
 //                                    Text(aiTeam.name)
 //                                        .font(.title3.bold())
 //                                        .foregroundColor(.white)
 //                                }
-//                                
+//
 //                            } else {
-//                                
+//
 //                                Text("Waiting...")
 //                                    .foregroundColor(.white.opacity(0.6))
 //                            }
 //                        }
 //                    }
 //                }
-//                
+//
 //                if isMultiplayer ? selectedTeam != nil : aiTeam != nil {
-//                    
+//
 //                    Button {
 //                        Audio.button()
 //                        coordinator.startSinglePlayer()
 //                    } label: {
-//                        
+//
 //                        Text(isMultiplayer ? "Find Match" : "Start Match")
 //                            .font(.title2.bold())
 //                            .bold(true)
@@ -1179,40 +1179,40 @@ private struct ExitConfirmOverlay: View {
 
 struct teamSelectionSingleView: View {
     @EnvironmentObject var coordinator: GameCoordinator
-
+    
     @State private var selectedTeam: WCTeam?
     @State private var aiTeam: WCTeam?
-
+    
     private let columns = Array(
         repeating: GridItem(.fixed(170), spacing: 20),
         count: 3
     )
-
+    
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(spacing: 28) {
-
+                
                 ZStack {
                     VStack(spacing: 8) {
-
+                        
                         Text(L("singlePlayer.title"))
                             .font(.system(size: 34, weight: .heavy))
                             .foregroundStyle(.yellow)
                             .multilineTextAlignment(.center)
                             .textCase(.uppercase)
-
+                        
                         Text(L("singlePlayer.chooseNationality"))
                             .font(.title)
                             .fontWeight(.semibold)
                             .foregroundStyle(.white)
-
+                        
                         Text(L("singlePlayer.chooseNationalityDescription"))
                             .font(.body)
                             .foregroundStyle(.white.opacity(0.5))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
                     }
-
+                    
                     HStack {
                         Button {
                             Audio.button()
@@ -1223,43 +1223,43 @@ struct teamSelectionSingleView: View {
                                 .foregroundStyle(.white)
                         }
                         .buttonStyle(.plain)
-
+                        
                         Spacer()
                     }
                 }
                 .padding(.horizontal)
-
+                
                 LazyVGrid(columns: columns, spacing: 18) {
-
+                    
                     ForEach(WorldCupTeams.all.sorted { $0.name < $1.name }) { team in
-
+                        
                         Button {
                             Audio.button()
-
+                            
                             selectedTeam = team
                             coordinator.homeWCTeam = team
-
+                            
                             aiTeam = nil
-
+                            
                             let opponents = WorldCupTeams.all.filter {
                                 $0.id != team.id
                             }
-
+                            
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                                 let randomOpponent = opponents.randomElement()!
                                 aiTeam = randomOpponent
                                 coordinator.awayWCTeam = randomOpponent
                             }
-
+                            
                         } label: {
-
+                            
                             ZStack(alignment: .topTrailing) {
-
+                                
                                 VStack(spacing: 8) {
-
+                                    
                                     Text(team.flag)
                                         .font(.system(size: 48))
-
+                                    
                                     Text(team.name)
                                         .font(.system(size: 14,
                                                       weight: .bold,
@@ -1284,7 +1284,7 @@ struct teamSelectionSingleView: View {
                                             lineWidth: selectedTeam?.id == team.id ? 3 : 1
                                         )
                                 )
-
+                                
                                 if selectedTeam?.id == team.id {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 24))
@@ -1296,78 +1296,78 @@ struct teamSelectionSingleView: View {
                         .buttonStyle(.plain)
                     }
                 }
-
+                
                 HStack {
-
+                    
                     VStack(spacing: 12) {
-
+                        
                         Text(L("common.you"))
                             .font(.headline)
                             .foregroundColor(.white.opacity(0.8))
-
+                        
                         if let selectedTeam {
-
+                            
                             VStack {
                                 Text(selectedTeam.flag)
                                     .font(.system(size: 60))
-
+                                
                                 Text(selectedTeam.name)
                                     .font(.title3.bold())
                                     .foregroundColor(.white)
                             }
-
+                            
                         } else {
-
+                            
                             Text(L("common.waiting"))
                                 .foregroundColor(.white.opacity(0.6))
                         }
                     }
-
+                    
                     VStack {
                         Spacer()
-
+                        
                         Text("VS")
                             .font(.system(size: 28,
                                           weight: .black,
                                           design: .monospaced))
                             .foregroundColor(.yellow)
-
+                        
                         Spacer()
                     }
                     .frame(width: 60)
-
+                    
                     VStack(spacing: 12) {
-
+                        
                         Text(L("common.ai"))
                             .font(.headline)
                             .foregroundColor(.white.opacity(0.8))
-
+                        
                         if let aiTeam {
-
+                            
                             VStack {
                                 Text(aiTeam.flag)
                                     .font(.system(size: 60))
-
+                                
                                 Text(aiTeam.name)
                                     .font(.title3.bold())
                                     .foregroundColor(.white)
                             }
-
+                            
                         } else {
-
+                            
                             Text(L("common.waiting"))
                                 .foregroundColor(.white.opacity(0.6))
                         }
                     }
                 }
-
+                
                 if aiTeam != nil {
-
+                    
                     Button {
                         Audio.button()
                         coordinator.startSinglePlayer()
                     } label: {
-
+                        
                         Text(L("singlePlayer.startMatch"))
                             .font(.title2.bold())
                             .textCase(.uppercase)
@@ -1466,22 +1466,22 @@ struct LobbyView: View {
                 ZStack {
                     
                     VStack(spacing: 8) {
-
+                        
                         Text(
                             is2v2
-                                ? L("lobby.title2v2")
-                                : L("lobby.title1v1")
+                            ? L("lobby.title2v2")
+                            : L("lobby.title1v1")
                         )
                         .font(.system(size: 34, weight: .heavy))
                         .foregroundStyle(.yellow)
                         .multilineTextAlignment(.center)
                         .textCase(.uppercase)
-
+                        
                         Text(L("lobby.chooseNationality"))
                             .font(.title)
                             .fontWeight(.semibold)
                             .foregroundStyle(.white)
-
+                        
                         Text(L("lobby.chooseNationalityDescription"))
                             .font(.body)
                             .foregroundStyle(.white.opacity(0.5))
@@ -1858,27 +1858,27 @@ struct PlayingView: View {
 /// Pause menu shown over the frozen pitch (vs AI only).
 struct PauseOverlay: View {
     @EnvironmentObject var coordinator: GameCoordinator
-
+    
     var body: some View {
         ZStack {
             Color.black.opacity(0.55)
                 .ignoresSafeArea()
-
+            
             VStack(spacing: 18) {
-
+                
                 Image(systemName: "pause.circle.fill")
                     .font(.system(size: 30))
                     .foregroundStyle(
                         Color(red: 238/255, green: 170/255, blue: 82/255)
                     )
-
+                
                 Text(L("pause.title"))
                     .font(.system(size: 22, weight: .heavy, design: .monospaced))
                     .textCase(.uppercase)
                     .foregroundColor(.yellow)
-
+                
                 HStack(spacing: 14) {
-
+                    
                     Button {
                         Audio.button()
                         coordinator.resumeGame()
@@ -1894,7 +1894,7 @@ struct PauseOverlay: View {
                             .foregroundColor(.white.opacity(0.9))
                     }
                     .buttonStyle(.plain)
-
+                    
                     Button {
                         Audio.button()
                         coordinator.returnToMenu()
@@ -2086,7 +2086,7 @@ struct StatsPanel: View {
                 .foregroundColor(.white.opacity(0.5))
             
             LazyVGrid(columns: columns, spacing: 14) {
-                //                        stat(L("results.wpm"), "\(wpm)")
+                stat(L("results.wpm"), "\(wpm)")
                 stat(L("results.accuracy"), "\(accuracy)%")
                 stat(L("results.words"), "\(stats.wordsCompleted)")
                 stat(L("results.duelsWL"), "\(stats.duelsWon)-\(stats.duelsLost)")
