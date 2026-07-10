@@ -24,7 +24,8 @@ struct TypingSoccerApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(coordinator)
-                .frame(minWidth: 900, minHeight: 560)
+                .frame(minWidth: 900, minHeight: 780)
+//                .frame(minWidth: 900, minHeight: 560)
         }
         .windowResizability(.contentSize)
     }

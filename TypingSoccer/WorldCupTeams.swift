@@ -29,7 +29,9 @@ struct WCTeam: Identifiable, Hashable {
     let flag: String        // country flag emoji
     let players: [WCPlayer] // exactly 4: three outfielders + GK
     
-    var name: String { id }
+    var name: String {
+        L("country.\(id)")
+    }
 }
 
 enum WorldCupTeams {
