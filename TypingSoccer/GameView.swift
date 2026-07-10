@@ -1906,7 +1906,7 @@ struct PauseOverlay: View {
                             .frame(width: 140, height: 42)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.brandRed)
+                                    .fill(Color(red: 0.85, green: 0.25, blue: 0.25))
                             )
                             .foregroundColor(.white)
                     }
