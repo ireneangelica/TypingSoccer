@@ -1869,7 +1869,7 @@ struct PauseOverlay: View {
                 Image(systemName: "pause.circle.fill")
                     .font(.system(size: 30))
                     .foregroundStyle(
-                        Color.brandOrange
+                        Color(red: 238/255, green: 170/255, blue: 82/255)
                     )
 
                 Text(L("pause.title"))
