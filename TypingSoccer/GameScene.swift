@@ -174,13 +174,23 @@ final class GameScene: SKScene {
     /// whenever possession changes.
     private var chaseChoice: [Team: Lane] = [:]
 
-    // Network event buffering (joiner side). Events that arrive while this
-    // scene is mid-countdown or mid-break are held and applied when the
-    // waiting phase ends, keeping presentation in step with the host.
-    private var pendingRemoteDuel: (kind: DuelKind, word: String,
-                                    attacker: PlayerNode?, defender: PlayerNode?)?
-    private var pendingRemotePossession: (player: PlayerNode, x: CGFloat,
-                                          y: CGFloat, mustPass: Bool)?
+    // Network event buffering (joiner side). Authoritative host events that
+    // arrive while this scene is playing out a local pause (countdown, break,
+    // goal celebration, ball flight, offside whistle) are queued IN ORDER and
+    // replayed once the scene can accept them again. NOTE: this replaced a
+    // lossy single-slot buffer that silently dropped events (e.g. a duel
+    // result landing during the time-shifted half-time pause, or a possession
+    // "superseded" by a buffered duel) — one dropped event left this sim
+    // permanently desynced from the host, seen as teleporting players from
+    // shortly after half time to the end of the match.
+    private enum NetEvent {
+        case duelStart(kind: DuelKind, word: String,
+                       attacker: PlayerNode?, defender: PlayerNode?)
+        case duelResult(winnerHome: Bool, outcomeCode: Int?)
+        case possession(player: PlayerNode, x: CGFloat, y: CGFloat, mustPass: Bool)
+        case passStarted(target: PlayerNode, offside: Bool, lineX: CGFloat)
+    }
+    private var netEventQueue: [NetEvent] = []
     /// True while the joiner plays out a local animation (e.g. the offside
     /// whistle) that must finish before the next possession is applied.
     private var holdingPossessionEvents = false
@@ -713,7 +723,7 @@ final class GameScene: SKScene {
             beginKickoffDuel()
         } else {
             phase = .kickoff
-            drainPendingNetEvents()
+            drainNetEvents()
         }
     }
 
@@ -1050,8 +1060,12 @@ final class GameScene: SKScene {
             if self.isAuthority {
                 self.giveBallToRandomOutfielder(of: shooter.team.opponent)
                 self.beginRunning()
+            } else {
+                // Joiner: the host's possession message assigns the new
+                // carrier — wait for it in a state that can accept events.
+                self.phase = .kickoff
+                self.drainNetEvents()
             }
-            // Joiner: the host's possession message assigns the new carrier.
         }]))
     }
 
@@ -1134,6 +1148,11 @@ final class GameScene: SKScene {
         }
         let dt = lastUpdate == 0 ? 0 : min(currentTime - lastUpdate, 1.0 / 20.0)
         lastUpdate = currentTime
+
+        // Joiner: replay any queued host events the moment the scene can
+        // accept them again (belt-and-braces — the explicit drain calls at
+        // the end of each local pause cover the common paths).
+        if isNetPeer, !netEventQueue.isEmpty { drainNetEvents() }
 
         switch phase {
         case .strategyPick: updateStrategyPick(dt)
@@ -1290,7 +1309,7 @@ final class GameScene: SKScene {
                     phase = .kickoff    // host's duelStart message brings the word
                 }
             }
-            drainPendingNetEvents()     // apply anything that arrived mid-countdown
+            drainNetEvents()            // apply anything that arrived mid-countdown
         }
     }
 
@@ -1974,36 +1993,89 @@ final class GameScene: SKScene {
     func applyRemoteDuelStart(kindCode: Int, word: String,
                               attacker: PeerPlayerRef?, defender: PeerPlayerRef?) {
         guard isNetPeer, netReady else { return }
-        let kind = DuelKind(netCode: kindCode)
-        let a = attacker.map(playerNode(for:))
-        let d = defender.map(playerNode(for:))
-        switch phase {
-        case .countdown, .strategyPick, .halftime:
-            // Still playing out a local pause — hold the duel until it ends.
-            pendingRemoteDuel = (kind, word, a, d)
-        default:
-            beginDuel(kind: kind, word: word, attacker: a, defender: d)
-        }
+        netEventQueue.append(.duelStart(kind: DuelKind(netCode: kindCode), word: word,
+                                        attacker: attacker.map(playerNode(for:)),
+                                        defender: defender.map(playerNode(for:))))
+        drainNetEvents()
     }
 
-    /// Joiner: the host resolved the current duel.
+    /// Joiner: the host resolved a duel. Queued, never dropped — the old
+    /// phase-guarded early return threw the result away whenever it arrived
+    /// during a local pause, wedging this scene in a dead duel.
     func applyRemoteDuelResult(winnerHome: Bool, shotOutcomeCode: Int?) {
-        guard isNetPeer, !duelResolved, case .duel = phase else { return }
-        duelResolved = true
-        applyDuelResolution(winner: localTeam(wireHome: winnerHome),
-                            outcome: shotOutcomeCode.flatMap(ShotOutcome.init(rawValue:)))
+        guard isNetPeer, netReady else { return }
+        netEventQueue.append(.duelResult(winnerHome: winnerHome, outcomeCode: shotOutcomeCode))
+        drainNetEvents()
     }
 
     /// Joiner: the host assigned the ball to a player (kickoffs, turnovers,
     /// restarts, keeper distributions, free kicks, landed passes).
     func applyRemotePossession(playerRef ref: PeerPlayerRef, x: Double, y: Double, mustPass: Bool) {
         guard isNetPeer, netReady else { return }
-        let p = playerNode(for: ref)
-        if holdingPossessionEvents || phase == .countdown || phase == .halftime {
-            pendingRemotePossession = (p, CGFloat(x), CGFloat(y), mustPass)
-            return
+        netEventQueue.append(.possession(player: playerNode(for: ref),
+                                         x: CGFloat(x), y: CGFloat(y), mustPass: mustPass))
+        drainNetEvents()
+    }
+
+    /// Joiner: a pass kicked off on the host — queued like every other
+    /// authoritative event so it can't fire mid-celebration or mid-break.
+    func applyRemotePass(targetRef: PeerPlayerRef, offside: Bool, lineX: Double) {
+        guard isNetPeer, netReady else { return }
+        netEventQueue.append(.passStarted(target: playerNode(for: targetRef),
+                                          offside: offside, lineX: CGFloat(lineX)))
+        drainNetEvents()
+    }
+
+    /// Can the joiner apply the next queued play event right now? Not while a
+    /// local pause or animation is running (countdown, breaks, celebrations,
+    /// ball flights, the offside whistle) — those must finish first so both
+    /// screens present the same beats in the same order.
+    private var canAcceptPlayEvent: Bool {
+        guard !holdingPossessionEvents, !ballInFlight else { return false }
+        switch phase {
+        case .running, .kickoff: return true
+        default:                 return false
         }
-        applyPossessionNow(p, x: CGFloat(x), y: CGFloat(y), mustPass: mustPass)
+    }
+
+    /// Replay queued host events, strictly in arrival order, for as long as
+    /// the scene can accept the event at the head of the queue. Called when
+    /// an event arrives, once per frame, and at the end of every local pause.
+    private func drainNetEvents() {
+        guard isNetPeer, netReady else { return }
+        while let event = netEventQueue.first {
+            switch event {
+            case .duelStart(let kind, let word, let attacker, let defender):
+                guard canAcceptPlayEvent else { return }
+                netEventQueue.removeFirst()
+                beginDuel(kind: kind, word: word, attacker: attacker, defender: defender)
+
+            case .duelResult(let winnerHome, let outcomeCode):
+                if case .duel = phase, !duelResolved {
+                    netEventQueue.removeFirst()
+                    duelResolved = true
+                    applyDuelResolution(winner: localTeam(wireHome: winnerHome),
+                                        outcome: outcomeCode.flatMap(ShotOutcome.init(rawValue:)))
+                } else if canAcceptPlayEvent {
+                    // Result for a duel this scene no longer has (its duel was
+                    // superseded by a break) — discard rather than replay it
+                    // against stale state.
+                    netEventQueue.removeFirst()
+                } else {
+                    return          // mid-pause: hold until the pause ends
+                }
+
+            case .possession(let p, let x, let y, let mustPass):
+                guard canAcceptPlayEvent else { return }
+                netEventQueue.removeFirst()
+                applyPossessionNow(p, x: x, y: y, mustPass: mustPass)
+
+            case .passStarted(let target, let offside, let lineX):
+                guard canAcceptPlayEvent else { return }
+                netEventQueue.removeFirst()
+                applyPassNow(target: target, offside: offside, lineX: lineX)
+            }
+        }
     }
 
     private func applyPossessionNow(_ p: PlayerNode, x: CGFloat, y: CGFloat, mustPass: Bool) {
@@ -2013,10 +2085,8 @@ final class GameScene: SKScene {
         if phase != .running { beginRunning() }
     }
 
-    /// Joiner: a pass kicked off on the host — animate the same flight here.
-    func applyRemotePass(targetRef: PeerPlayerRef, offside: Bool, lineX: Double) {
-        guard isNetPeer, netReady else { return }
-        let target = playerNode(for: targetRef)
+    /// Joiner: animate the same pass flight the host just started.
+    private func applyPassNow(target: PlayerNode, offside: Bool, lineX: CGFloat) {
         Audio.tick()
         carrierMustPass = false
         carrier?.setHasBall(false)
@@ -2028,7 +2098,7 @@ final class GameScene: SKScene {
         if offside {
             phase = .goalScored(.away)          // neutral pause during the whistle
             holdingPossessionEvents = true      // don't restart until the flag sequence ends
-            let flagX = mirrorX(CGFloat(lineX))
+            let flagX = mirrorX(lineX)
             ball.run(travel) { [weak self] in
                 guard let self else { return }
                 self.ballInFlight = false
@@ -2062,7 +2132,7 @@ final class GameScene: SKScene {
                 gk.position = CGPoint(x: self.keeperX(for: gk.team), y: self.geometry.rect.midY)
             }
             self.holdingPossessionEvents = false
-            self.drainPendingNetEvents()
+            self.drainNetEvents()
         }]))
     }
 
@@ -2098,8 +2168,7 @@ final class GameScene: SKScene {
         guard isNetPeer, netReady else { return }
         pendingBreak = nil                  // stoppage resolved into the transition
         addedTimeElapsed = 0
-        pendingRemoteDuel = nil
-        pendingRemotePossession = nil
+        netEventQueue.removeAll()           // superseded by the period transition
         holdingPossessionEvents = false
         switch kind {
         case 0: startHalftime()
@@ -2110,19 +2179,6 @@ final class GameScene: SKScene {
             startPenaltyShootout()
         case 4: endMatch()
         default: break
-        }
-    }
-
-    /// Apply buffered network events once a local waiting phase ends.
-    private func drainPendingNetEvents() {
-        guard isNetPeer else { return }
-        if let d = pendingRemoteDuel {
-            pendingRemoteDuel = nil
-            pendingRemotePossession = nil     // superseded by the new duel
-            beginDuel(kind: d.kind, word: d.word, attacker: d.attacker, defender: d.defender)
-        } else if let p = pendingRemotePossession {
-            pendingRemotePossession = nil
-            applyPossessionNow(p.player, x: p.x, y: p.y, mustPass: p.mustPass)
         }
     }
 
@@ -2166,6 +2222,7 @@ final class GameScene: SKScene {
     func peerDidDisconnect() {
         guard mode == .multiplayer, netReady, phase != .finished else { return }
         removeAllActions()
+        netEventQueue.removeAll()
         hud.hidePrompt()
         hud.showStatus("PLAYER DISCONNECTED", fontSize: 36)
         phase = .halftime          // neutral freeze — no input, no movement
