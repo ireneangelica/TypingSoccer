@@ -15,6 +15,7 @@
 import SpriteKit
 import AppKit
 import AVFoundation
+import Combine
 
 protocol GameSceneDelegate: AnyObject {
     /// Fired when the match ends, with the local player's stats and final score.
@@ -228,10 +229,20 @@ final class GameScene: SKScene {
     /// Which end each team attacks this half. Flips at half time.
     private var homeAttacksRight = true
 
+    /// Keeps the HUD's text size in sync with the Settings slider.
+    private var textScaleSub: AnyCancellable?
+
+    /// This match's word list — a small random sample of the master banks,
+    /// drawn once per match so every game plays a different mix. Only the
+    /// authority draws from it (joiners get words via `duelStart`).
+    private let words = WordProvider()
+
     // MARK: Lifecycle
 
     override func didMove(to view: SKView) {
-        backgroundColor = SKColor(red: 0.03, green: 0.05, blue: 0.09, alpha: 1)
+        // Outside-pitch background — #2C3947 slate.
+        backgroundColor = SKColor(red: 0x2C / 255.0, green: 0x39 / 255.0,
+                                  blue: 0x47 / 255.0, alpha: 1)
         // Fill the host view (cropping the outer margin) instead of letterboxing,
         // so no background shows through above/below the pitch. The 60pt field
         // inset absorbs the small edge crop at typical window sizes.
@@ -241,6 +252,11 @@ final class GameScene: SKScene {
         geometry = FieldBuilder.build(in: world, sceneSize: size)
         hud = HUD(sceneSize: size, textScale: CGFloat(SettingsStore.shared.textScale))
         addChild(hud)
+        // Track the Settings text-size slider LIVE so the setting takes
+        // effect the moment it changes, not only on the next match.
+        textScaleSub = SettingsStore.shared.$textScale
+            .removeDuplicates()
+            .sink { [weak self] scale in self?.hud?.setTextScale(CGFloat(scale)) }
         if let home = homeTeam, let away = awayTeam {
             hud.setTeamNames(home: home.name, away: away.name)
         }
@@ -448,9 +464,10 @@ final class GameScene: SKScene {
 
     /// Authority only: pick the word, tell the peer (multiplayer), start the duel.
     private func startDuel(kind: DuelKind, attacker: PlayerNode?, defender: PlayerNode?, intensity: Double) {
-        // The final shot uses a long, high-pressure word (8–12 letters).
-        let word = (kind == .shot) ? WordProvider.shotWord()
-                                   : WordProvider.word(intensity: intensity)
+        // The final shot uses a shot-mechanic word (8+ letters) from the
+        // dedicated shot bank; open play draws from this match's sampled list.
+        let word = (kind == .shot) ? words.shotWord()
+                                   : words.word(intensity: intensity)
         if isNetworkHost {
             broadcast(.duelStart(kind: kind.netCode, word: word,
                                  attacker: attacker.map(playerRef),
@@ -1085,6 +1102,13 @@ final class GameScene: SKScene {
     /// Execute a pending stoppage (after the shot, or the added-time cutoff).
     /// 90' draw → extra time. Extra-time draw → penalty shootout.
     private func triggerBreak() {
+        // Joiners NEVER run break transitions locally — the host's `.breakNow`
+        // message is the single authority. Otherwise the local trigger AND the
+        // incoming message would both run `startHalftime()`, toggling
+        // `homeAttacksRight` twice: the joiner's ends never switch while the
+        // host's do, and every host-frame coordinate lands on the wrong side
+        // for the whole second half (the post-HT UI desync).
+        guard isAuthority else { return }
         guard let brk = pendingBreak else { return }
         pendingBreak = nil
         addedTimeElapsed = 0

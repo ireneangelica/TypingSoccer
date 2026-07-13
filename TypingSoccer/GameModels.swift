@@ -72,14 +72,20 @@ enum Formation: Int, CaseIterable, Equatable {
 
     /// Depth as a fraction of the field width from a team's OWN goal line
     /// (small = deep/back, large = advanced/forward), per lane.
+    ///
+    /// Every shape sits a band FORWARD of its old spot: the "held back"
+    /// players stand at midfield depth rather than deep. Only 1-1-1 keeps a
+    /// true deep man — it's the one formation with a dedicated last line.
+    /// Applies to every mode (single player, 1v1, 2v2): both teams and the
+    /// AI place players through this same table.
     func depthFraction(for lane: Lane) -> CGFloat {
         let back: CGFloat = 0.15, mid: CGFloat = 0.28, fwd: CGFloat = 0.42
         switch self {
-        case .oneTwo:    return lane == .middle ? back : fwd   // wings up, centre deep
-        case .twoOne:    return lane == .middle ? fwd : back   // wings deep, centre up
-        case .threeZero: return back
+        case .oneTwo:    return lane == .middle ? mid : fwd    // wings up, centre at midfield
+        case .twoOne:    return lane == .middle ? fwd : mid    // wings at midfield, centre up
+        case .threeZero: return mid                            // a midfield wall, not a deep one
         case .zeroThree: return fwd
-        case .oneOneOne:
+        case .oneOneOne:                                       // the only shape with a deep man
             switch lane {
             case .top:    return fwd
             case .middle: return mid

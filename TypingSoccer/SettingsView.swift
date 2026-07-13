@@ -175,9 +175,13 @@ struct SettingsView: View {
                             )
                             .frame(width: 200)
 
+                            // Live preview: this glyph tracks the slider so the
+                            // setting visibly does something right here (the
+                            // real effect is on the in-game HUD text).
                             Text("A")
-                                .font(.system(size: 20, weight: .bold))
+                                .font(.system(size: 20 * settings.textScale, weight: .bold))
                                 .foregroundColor(.white)
+                                .frame(width: 34)
                         }
                     }
                 }
