@@ -163,12 +163,23 @@ struct ProfileView: View {
                 .font(.system(size: 18, weight: .heavy, design: .monospaced))
                 .foregroundColor(.white)
 
+            // Unlocked count, then a scrollable grid (the badge list has
+            // outgrown the fixed card). Hover a badge to see how to earn it.
+            let unlockedCount = Achievement.allCases.filter { store.isUnlocked($0) }.count
+            Text("\(unlockedCount) / \(Achievement.allCases.count)")
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .foregroundColor(.white.opacity(0.6))
+
             let columns = [GridItem(.fixed(196), spacing: 14), GridItem(.fixed(196), spacing: 14)]
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-                ForEach(Achievement.allCases) { a in
-                    badge(a, unlocked: store.isUnlocked(a))
+            ScrollView(.vertical, showsIndicators: true) {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                    ForEach(Achievement.allCases) { a in
+                        badge(a, unlocked: store.isUnlocked(a))
+                            .help(a.detail)
+                    }
                 }
             }
+            .frame(maxHeight: 230)
         }
         .padding(18)
         .frame(width: 430, alignment: .leading)
