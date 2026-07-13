@@ -1355,7 +1355,10 @@ final class GameScene: SKScene {
 
         // Added-time hard cutoff: if the stoppage window passes with no shot
         // in open play, stop the half/match now (shorter window in extra time).
-        if let brk = pendingBreak {
+        // Authority only: the joiner must keep animating until the host's
+        // `.breakNow` arrives — bailing out here just froze its screen (with
+        // the clock still ticking) whenever its stoppage counter ran ahead.
+        if isAuthority, let brk = pendingBreak {
             let cutoff = (brk == .etHalf || brk == .etFull) ? GameConfig.addedTimeCutoffExtra
                                                             : GameConfig.addedTimeCutoffRegular
             if addedTimeElapsed >= cutoff { triggerBreak(); return }
@@ -2125,13 +2128,20 @@ final class GameScene: SKScene {
         offsideLineLiveStyle = false
         run(.sequence([.wait(forDuration: 3.0), .run { [weak self] in
             guard let self else { return }
-            self.hud.hideStatus()
             self.offsideLineNode.isHidden = true
+            self.holdingPossessionEvents = false
+            // A break may have preempted the whistle — leave its presentation
+            // (and phase) alone and just release any queued events.
+            guard case .goalScored = self.phase else { self.drainNetEvents(); return }
+            self.hud.hideStatus()
             for gk in [self.homeKeeper!, self.awayKeeper!] {
                 gk.setHasBall(false)
                 gk.position = CGPoint(x: self.keeperX(for: gk.team), y: self.geometry.rect.midY)
             }
-            self.holdingPossessionEvents = false
+            // Leave the neutral pause in a state that can accept the host's
+            // free-kick possession (the queue can't apply events while the
+            // scene sits in .goalScored — this was a hard wedge).
+            self.phase = .kickoff
             self.drainNetEvents()
         }]))
     }
